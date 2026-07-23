@@ -44,6 +44,10 @@ function SPDRN._check_pending_run_transition()
 		return
 	end
 	SPDRN._pending_run_transition = nil
+	-- §16.8: every individual run (first and subsequent, within a multi-run
+	-- match) gets its own start timestamp, so record_run_completed measures
+	-- just this run rather than the whole match's elapsed time.
+	SPDRN.reset_current_run_timer()
 	pending.instance:start_run(pending.deck, pending.seed)
 end
 
@@ -103,6 +107,9 @@ function SPDRN.begin_run(gamemode_key, decks, seed)
 	-- broadcast needed), so returning to the lobby requires re-readying.
 	SPDRN.reset_ready_state()
 	SPDRN.lobby.seed_votes:reset()
+	-- §16.8: fresh per-match progress/result-collection state -- must not carry
+	-- over from whatever match (if any) this player was previously in.
+	SPDRN.reset_match_progress()
 	-- Client-side run clock (gates the seed-change window) and the deck(s) used for this run
 	-- (so a same-seed restart can reuse them).
 	SPDRN._run_started_at = love.timer.getTime()

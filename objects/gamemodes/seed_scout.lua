@@ -49,6 +49,7 @@ MPAPI.GameMode({
 			return
 		end
 		self._win_fired = true
+		SPDRN.record_run_completed()
 
 		local lobby = MPAPI.get_current_lobby()
 		if not lobby then

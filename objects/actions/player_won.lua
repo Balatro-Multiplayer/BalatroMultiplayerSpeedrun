@@ -34,8 +34,8 @@ MPAPI.ActionType({
 			end,
 		}))
 
-		if lobby.is_host then
-			SPDRN.report_match_result(winner_id)
-		end
+		-- §11.6/§16.8: every player reports its own result now, not just the
+		-- host -- see result.lua's report_match_result.
+		SPDRN.report_match_result(winner_id)
 	end,
 })

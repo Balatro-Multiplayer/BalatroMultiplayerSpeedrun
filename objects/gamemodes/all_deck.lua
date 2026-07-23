@@ -58,6 +58,7 @@ MPAPI.GameMode({
 			return
 		end
 		self._ante9_fired = true
+		SPDRN.record_run_completed()
 
 		self._run_count = self._run_count + 1
 		local total = (self._run_decks and #self._run_decks) or 1
