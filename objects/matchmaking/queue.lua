@@ -3,8 +3,12 @@
 function SPDRN._join_queue(kind, gamemode_key)
 	SPDRN._lobby_kind = kind
 
+	-- §16.2: casual scales via the gamemode's own .public field (2-16, already
+	-- modeled correctly on every gamemode -- this just used to ignore it and
+	-- always read .ranked instead, capping casual SPDRN at 2 players).
 	local gm = MPAPI.GameModes[gamemode_key]
-	local mm_max = gm and gm.max_players and gm.max_players.ranked or 2
+	local max_players_field = (kind == SPDRN.LobbyKind.RANKED) and 'ranked' or 'public'
+	local mm_max = gm and gm.max_players and gm.max_players[max_players_field] or 2
 	local game_mode = (kind == SPDRN.LobbyKind.RANKED) and (SPDRN.LobbyKind.RANKED_PREFIX .. gamemode_key) or gamemode_key
 
 	SPDRN.sendDebugMessage('[mmdbg] _join_queue kind=' .. tostring(kind) .. ' gamemode_key=' .. tostring(gamemode_key) .. ' -> game_mode=' .. tostring(game_mode) .. ' mm_max=' .. tostring(mm_max))

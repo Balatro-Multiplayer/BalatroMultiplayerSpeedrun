@@ -5,7 +5,7 @@ MPAPI.GameMode({
 	max_players = {
 		public = 16,
 		private = 16,
-		ranked = 2,
+		ranked = 4,
 	},
 	-- Pre-run deck draft (matchmaking only): 5 random decks, ban down to the 1 played.
 	ban_pick = { pool_size = 5, keep = 1 },
