@@ -12,6 +12,8 @@ MPAPI.GameMode({
 	-- here purely so SPDRN.required_deck_count picks up "needs 1 deck" for the up-front picker,
 	-- exactly like Gold Stake Single.
 	ban_pick = { pool_size = 5, keep = 1 },
+	-- §16.7: 8 runs (one per stake, White through Gold).
+	duration_cap_seconds = 8 * SPDRN.DURATION_CAP_PER_RUN_SECONDS,
 	init = function(self)
 		self._run_count = 0
 		self._ante9_fired = false

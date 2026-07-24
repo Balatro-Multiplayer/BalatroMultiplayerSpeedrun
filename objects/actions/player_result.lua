@@ -16,7 +16,11 @@ MPAPI.ActionType({
 			best_run_time_ms = params.best_run_time_ms,
 		}
 
-		if SPDRN._current_winner_id then
+		-- §16.7: keyed on _match_result_pending (this client has itself already
+		-- finalized/broadcast), not on _current_winner_id's truthiness -- a
+		-- duration-cap cutoff finalizes with winner_id = nil, which must still
+		-- retry as later players' results arrive.
+		if SPDRN._match_result_pending then
 			SPDRN._maybe_report_result(SPDRN._current_winner_id)
 		end
 	end,

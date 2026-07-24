@@ -50,6 +50,11 @@ MPAPI.GameMode({
 		build_pool = function() return scout_pool(5) end,
 		decorate_tile = decorate_scout_tile,
 	},
+	-- §16.7: 1 run -- the race phase only. SPDRN._run_started_at (what the
+	-- duration-cap poll measures elapsed time against) is reset when the scout
+	-- phase transitions to the race phase (see _check_seed_scout_timer below),
+	-- so the 5-minute scouting window is already excluded automatically.
+	duration_cap_seconds = SPDRN.DURATION_CAP_PER_RUN_SECONDS,
 	init = function(self)
 		-- 'scout' (5-minute $500 free-play window on the match's seed/deck/stake, thrown away)
 		-- -> 'race' (the real timed run, regular money, same seed/deck/stake).

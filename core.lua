@@ -103,9 +103,11 @@ MPAPI.on_loaded(function()
 	-- Also polls for a pending run-start/restart request (see SPDRN.request_run_transition
 	-- in ui/lobby/run_start.lua) -- this runs after the frame's own EventManager:update()
 	-- has already returned, which is why it's the safe place to perform it. Same reasoning
-	-- for the deferred starting-money override (Seed Scout's scouting budget) and Seed
+	-- for the deferred starting-money override (Seed Scout's scouting budget), Seed
 	-- Scout's own wall-clock scouting-phase timer (defined in objects/gamemodes/seed_scout.lua,
-	-- not shared code -- it only inspects Seed-Scout-specific instance state).
+	-- not shared code -- it only inspects Seed-Scout-specific instance state), and the
+	-- §16.7 match-duration cap (objects/matchmaking/duration.lua) -- another wall-clock
+	-- check with no engine event to react to instead.
 	if not SPDRN._game_over_hooked then
 		SPDRN._game_over_hooked = true
 		local _spdrn_update_ref = Game.update
@@ -115,6 +117,7 @@ MPAPI.on_loaded(function()
 			pcall(SPDRN._check_pending_run_transition)
 			pcall(SPDRN._check_pending_dollars_override)
 			pcall(SPDRN._check_seed_scout_timer)
+			pcall(SPDRN._check_match_duration)
 		end
 	end
 

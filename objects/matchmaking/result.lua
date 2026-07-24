@@ -85,6 +85,7 @@ end
 -- has now reported.
 function SPDRN.report_match_result(winner_id)
 	SPDRN._current_winner_id = winner_id
+	SPDRN._match_result_pending = true
 
 	local lobby = MPAPI.get_current_lobby()
 	if not lobby then

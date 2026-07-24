@@ -12,6 +12,8 @@ return {
 			k_get_ready = 'Get ready!',
 			k_starting_in = 'Starting in',
 			k_seed_vote = 'Vote to change seed',
+			k_times_up = "Time's Up",
+			k_duration_cap_cap = 'Duration Cap',
 		},
 	},
 }

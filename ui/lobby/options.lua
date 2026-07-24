@@ -128,6 +128,42 @@ G.FUNCS.spdrn_lobby_options = function()
 				}),
 			},
 		}
+
+			-- §16.7: private lobbies opt into the same 15-min-per-run duration cap
+			-- ranked/casual matches always have. Off by default (existing lobbies'
+			-- metadata has no duration_cap_opt_in key at all, which reads as false).
+			local cap_on = meta.duration_cap_opt_in == true
+			contents[#contents + 1] = { n = G.UIT.R, config = { align = 'cm', padding = 0.05 }, nodes = {
+				{ n = G.UIT.T, config = { text = localize('k_duration_cap_cap') or 'Duration Cap', scale = 0.4, colour = G.C.UI.TEXT_LIGHT } },
+			} }
+			contents[#contents + 1] = {
+				n = G.UIT.R,
+				config = { align = 'cm', padding = 0.05 },
+				nodes = {
+					UIBox_button({
+						button = 'spdrn_set_duration_cap_on',
+						label = { 'On' .. (cap_on and ' *' or '') },
+						colour = cap_on and G.C.GREEN or G.C.GREY,
+						minw = 4,
+						minh = 0.6,
+						scale = 0.45,
+					}),
+				},
+			}
+			contents[#contents + 1] = {
+				n = G.UIT.R,
+				config = { align = 'cm', padding = 0.05 },
+				nodes = {
+					UIBox_button({
+						button = 'spdrn_set_duration_cap_off',
+						label = { 'Off' .. (not cap_on and ' *' or '') },
+						colour = (not cap_on) and G.C.GREEN or G.C.GREY,
+						minw = 4,
+						minh = 0.6,
+						scale = 0.45,
+					}),
+				},
+			}
 	end
 
 	G.FUNCS.overlay_menu({
@@ -148,7 +184,7 @@ local function change_gamemode(key)
 		-- them) so a host who already picked one doesn't lose it if they switch back to a mode
 		-- that does -- stake falls back to White (1) since every mode's metadata already
 		-- carries some value for it (see create_lobby_with_gamemode's universal default).
-		lobby:set_metadata({ gamemode = key, deck = deck, ruleset = meta.ruleset or SPDRN.Ruleset.ORDER, stake = meta.stake or 1, challenge = meta.challenge })
+		lobby:set_metadata({ gamemode = key, deck = deck, ruleset = meta.ruleset or SPDRN.Ruleset.ORDER, stake = meta.stake or 1, challenge = meta.challenge, duration_cap_opt_in = meta.duration_cap_opt_in })
 	end
 	G.FUNCS.exit_overlay_menu()
 end
@@ -181,7 +217,7 @@ local function change_ruleset(key)
 	local lobby = SPDRN.lobby.ref
 	if lobby and lobby.is_host then
 		local meta = lobby:get_metadata()
-		lobby:set_metadata({ gamemode = meta.gamemode, deck = meta.deck or SPDRN.Deck.DEFAULT, ruleset = key })
+		lobby:set_metadata({ gamemode = meta.gamemode, deck = meta.deck or SPDRN.Deck.DEFAULT, ruleset = key, stake = meta.stake, challenge = meta.challenge, duration_cap_opt_in = meta.duration_cap_opt_in })
 	end
 	G.FUNCS.exit_overlay_menu()
 end
@@ -192,4 +228,24 @@ end
 
 G.FUNCS.spdrn_set_ruleset_vanilla = function()
 	change_ruleset(SPDRN.Ruleset.VANILLA)
+end
+
+-- §16.7: private-lobby opt-in for the same duration cap ranked/casual matches
+-- always have (SPDRN._check_match_duration reads this metadata field directly,
+-- polled live, so no restart is needed for a toggle mid-lobby to take effect).
+local function set_duration_cap_opt_in(value)
+	local lobby = SPDRN.lobby.ref
+	if lobby and lobby.is_host then
+		local meta = lobby:get_metadata()
+		lobby:set_metadata({ gamemode = meta.gamemode, deck = meta.deck or SPDRN.Deck.DEFAULT, ruleset = meta.ruleset or SPDRN.Ruleset.ORDER, stake = meta.stake, challenge = meta.challenge, duration_cap_opt_in = value })
+	end
+	G.FUNCS.exit_overlay_menu()
+end
+
+G.FUNCS.spdrn_set_duration_cap_on = function()
+	set_duration_cap_opt_in(true)
+end
+
+G.FUNCS.spdrn_set_duration_cap_off = function()
+	set_duration_cap_opt_in(false)
 end

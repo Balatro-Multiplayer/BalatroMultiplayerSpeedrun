@@ -16,6 +16,12 @@ function SPDRN.reset_match_progress()
 	}
 	SPDRN._collected_results = {}
 	SPDRN._current_winner_id = nil
+	-- §16.7: whether THIS client has already finalized/broadcast its own result --
+	-- tracked separately from _current_winner_id because a duration-cap cutoff
+	-- calls report_match_result(nil) (no single winner), and player_result.lua's
+	-- retry-on-receipt needs a signal that survives a nil winner id.
+	SPDRN._match_result_pending = false
+	SPDRN._match_timeout_fired = false
 end
 
 -- Called at the start of every individual run, first and subsequent, within a
