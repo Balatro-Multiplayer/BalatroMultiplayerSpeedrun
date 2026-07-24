@@ -26,8 +26,19 @@ SPDRN.setup_lobby_events = function(lobby)
 	lobby:on('player_left', function(player_id)
 		SPDRN.sendDebugMessage('Player left: ' .. tostring(player_id))
 		L.ready:remove(player_id)
-		L.seed_votes:remove(player_id)
+		-- A full reset, not just this player's own vote: §16.5 resets everyone's
+		-- vote whenever membership changes (an "unanimous" bar computed against
+		-- the old roster would otherwise misfire once someone leaves).
+		L.seed_votes:reset()
 		update_game_buttons()
+	end)
+
+	lobby:on('player_reconnected', function(player_id)
+		SPDRN.sendDebugMessage('Player reconnected: ' .. tostring(player_id))
+		-- §16.5: votes reset on a reconnect too, same as a leave -- a stale
+		-- unanimous vote from before the drop shouldn't fire again the instant
+		-- the reconnecting player's own client re-syncs.
+		L.seed_votes:reset()
 	end)
 
 	lobby:on('connected', function()
