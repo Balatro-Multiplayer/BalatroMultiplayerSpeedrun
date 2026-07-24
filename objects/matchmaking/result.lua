@@ -93,11 +93,16 @@ function SPDRN.report_match_result(winner_id)
 	end
 
 	local progress = SPDRN.finalize_match_progress()
+	-- §16.10: jokers/deck_back ride along for the end-of-run roster display only --
+	-- build_placements (above) deliberately never reads them, so this stays a
+	-- pure display concern with no effect on ranking/server reporting.
 	SPDRN._collected_results[lobby.player_id] = {
 		furthest_ante = progress.furthest_ante,
 		furthest_round = progress.furthest_round,
 		arrived_at = progress.arrived_at,
 		best_run_time_ms = progress.best_run_time_ms,
+		jokers = progress.jokers,
+		deck_back = progress.deck_back,
 	}
 	lobby:action(MPAPI.ActionTypes['spdrn_player_result']):broadcast({
 		player_id = lobby.player_id,
@@ -105,6 +110,8 @@ function SPDRN.report_match_result(winner_id)
 		furthest_round = progress.furthest_round,
 		arrived_at = progress.arrived_at,
 		best_run_time_ms = progress.best_run_time_ms,
+		jokers = progress.jokers,
+		deck_back = progress.deck_back,
 	})
 
 	SPDRN._maybe_report_result(winner_id)

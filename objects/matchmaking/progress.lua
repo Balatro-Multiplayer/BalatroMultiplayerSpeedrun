@@ -5,6 +5,37 @@
 -- numbers, nothing is inferred about anyone else's run (see result.lua for how
 -- those self-reports get collected and turned into a ranking).
 
+-- §16.10: a lightweight snapshot of the local player's final jokers + deck
+-- back, captured once at finalize time alongside furthest ante/round -- shown
+-- on every player's end-of-run roster (ui/roster_screen.lua), not just their
+-- own stats. Plain data (not card:save()/CardArea:save(), which round-trip
+-- engine-internal state this display has no use for) so it rides cheaply on
+-- the existing spdrn_player_result broadcast.
+local function capture_local_jokers()
+	local jokers = {}
+	if G.jokers and G.jokers.cards then
+		for _, card in ipairs(G.jokers.cards) do
+			local center = card.config and card.config.center
+			if center then
+				jokers[#jokers + 1] = {
+					key = center.key,
+					edition = card.edition,
+					eternal = card.ability and card.ability.eternal or false,
+					perishable = card.ability and card.ability.perishable or false,
+				}
+			end
+		end
+	end
+	return jokers
+end
+
+local function capture_local_deck_back()
+	if G.GAME and G.GAME.viewed_back and G.GAME.viewed_back.key then
+		return G.GAME.viewed_back.key
+	end
+	return SPDRN.resolve_back_key(SPDRN._run_deck)
+end
+
 -- Called once per match (SPDRN.begin_run), before the first run starts.
 function SPDRN.reset_match_progress()
 	SPDRN._progress = {
@@ -12,6 +43,8 @@ function SPDRN.reset_match_progress()
 		furthest_round = 0,
 		arrived_at = 0,
 		best_run_time_ms = nil,
+		jokers = {},
+		deck_back = nil,
 		finalized = false,
 	}
 	SPDRN._collected_results = {}
@@ -66,6 +99,8 @@ function SPDRN.finalize_match_progress()
 		elseif ante == p.furthest_ante and round > p.furthest_round then
 			p.furthest_round = round
 		end
+		p.jokers = capture_local_jokers()
+		p.deck_back = capture_local_deck_back()
 	end
 	p.finalized = true
 	return p
