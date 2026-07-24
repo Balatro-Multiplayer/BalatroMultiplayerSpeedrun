@@ -42,72 +42,26 @@ local function deck_panel()
 	} }
 end
 
--- Host gets a challenge-picker button; guests see the chosen challenge as a read-only label.
--- Shown instead of deck_panel for gamemodes with picks_challenge = true (Challenge) -- the
--- challenge itself fixes the deck, there's nothing else to pick.
-local function challenge_panel()
-	local lobby = SPDRN.lobby.ref
-	local meta = (lobby and lobby:get_metadata()) or {}
-	local idx = meta.challenge and get_challenge_int_from_id(meta.challenge)
-	local challenge = idx and idx > 0 and G.CHALLENGES[idx]
-	local label = (challenge and challenge.name) or 'None'
-	if lobby and lobby.is_host then
-		return { n = G.UIT.C, config = { align = 'cm', padding = 0.05 }, nodes = {
-			UIBox_button({ id = 'spdrn_choose_challenge', button = 'spdrn_choose_challenge', colour = G.C.PURPLE, minw = 2.65, minh = 1.35, label = { 'Challenge', label }, scale = 0.4, col = true }),
-		} }
-	end
+-- A static, non-interactive label for gamemodes with always_draft = true (All Deck, Challenge,
+-- Seed Scout) -- there is nothing to pick up front, the ban-pick draft (run inline via
+-- build_matchmaking_controls, see SPDRN.lobby.build_controls) decides everything once the lobby
+-- is full.
+local function draft_panel()
 	return { n = G.UIT.C, config = { align = 'cm', padding = 0.05, r = 0.1, colour = G.C.L_BLACK, minw = 2.65, minh = 1.35, emboss = 0.05 }, nodes = {
-		{ n = G.UIT.R, config = { align = 'cm' }, nodes = { { n = G.UIT.T, config = { text = 'Challenge', scale = 0.32, colour = G.C.UI.TEXT_INACTIVE } } } },
-		{ n = G.UIT.R, config = { align = 'cm' }, nodes = { { n = G.UIT.T, config = { text = label, scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } } } },
+		{ n = G.UIT.R, config = { align = 'cm' }, nodes = { { n = G.UIT.T, config = { text = 'Draft', scale = 0.32, colour = G.C.UI.TEXT_INACTIVE } } } },
+		{ n = G.UIT.R, config = { align = 'cm' }, nodes = { { n = G.UIT.T, config = { text = 'Decided at start', scale = 0.32, colour = G.C.UI.TEXT_LIGHT, shadow = true } } } },
 	} }
 end
 
--- Host gets a stake-picker button; guests see the chosen stake as a read-only label. Shown
--- alongside deck_panel for gamemodes with picks_stake = true (Seed Scout only).
-local function stake_panel()
-	local lobby = SPDRN.lobby.ref
-	local meta = (lobby and lobby:get_metadata()) or {}
-	local stake_num = tonumber(meta.stake) or 1
-	local center = G.P_CENTER_POOLS.Stake[stake_num]
-	local label = center and localize({ type = 'name_text', key = center.key, set = 'Stake' }) or 'White Stake'
-	if lobby and lobby.is_host then
-		return { n = G.UIT.C, config = { align = 'cm', padding = 0.05 }, nodes = {
-			UIBox_button({ id = 'spdrn_choose_stake', button = 'spdrn_choose_stake', colour = G.C.ORANGE, minw = 2.65, minh = 1.35, label = { 'Stake', label }, scale = 0.4, col = true }),
-		} }
-	end
-	return { n = G.UIT.C, config = { align = 'cm', padding = 0.05, r = 0.1, colour = G.C.L_BLACK, minw = 2.65, minh = 1.35, emboss = 0.05 }, nodes = {
-		{ n = G.UIT.R, config = { align = 'cm' }, nodes = { { n = G.UIT.T, config = { text = 'Stake', scale = 0.32, colour = G.C.UI.TEXT_INACTIVE } } } },
-		{ n = G.UIT.R, config = { align = 'cm' }, nodes = { { n = G.UIT.T, config = { text = label, scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } } } },
-	} }
-end
-
--- A static, non-interactive label for gamemodes with always_draft = true (All Deck) -- there is
--- nothing to pick up front, the ban-pick draft (run inline via build_matchmaking_controls, see
--- SPDRN.lobby.build_controls) decides everything once the lobby is full.
-local function all_deck_panel()
-	return { n = G.UIT.C, config = { align = 'cm', padding = 0.05, r = 0.1, colour = G.C.L_BLACK, minw = 2.65, minh = 1.35, emboss = 0.05 }, nodes = {
-		{ n = G.UIT.R, config = { align = 'cm' }, nodes = { { n = G.UIT.T, config = { text = 'Decks', scale = 0.32, colour = G.C.UI.TEXT_INACTIVE } } } },
-		{ n = G.UIT.R, config = { align = 'cm' }, nodes = { { n = G.UIT.T, config = { text = 'All (drafted at start)', scale = 0.32, colour = G.C.UI.TEXT_LIGHT, shadow = true } } } },
-	} }
-end
-
--- Dispatches which panel(s) the current gamemode needs -- a list, since Seed Scout needs both
--- the deck panel and the stake panel together.
+-- Dispatches which panel(s) the current gamemode needs.
 local function mode_panel()
 	local lobby = SPDRN.lobby.ref
 	local meta = (lobby and lobby:get_metadata()) or {}
 	local gm = meta.gamemode and MPAPI.GameModes[meta.gamemode]
 	if gm and gm.always_draft then
-		return { all_deck_panel() }
+		return { draft_panel() }
 	end
-	if gm and gm.picks_challenge then
-		return { challenge_panel() }
-	end
-	local nodes = { deck_panel() }
-	if gm and gm.picks_stake then
-		nodes[#nodes + 1] = stake_panel()
-	end
-	return nodes
+	return { deck_panel() }
 end
 
 -- Private lobbies: host gets START + LOBBY OPTIONS, guests get a READY toggle; both get the

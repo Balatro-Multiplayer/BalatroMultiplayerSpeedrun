@@ -143,9 +143,9 @@ local function create_lobby_with_gamemode(key)
 		SPDRN.sendDebugMessage('Lobby created: ' .. tostring(lobby.code))
 		love.system.setClipboardText(lobby.code)
 		if _pending_gamemode_key then
-			-- stake = 1 (White) is a harmless universal default -- only Seed Scout's
-			-- picks_stake flag reads it (via the lobby's stake panel/START gate), everyone
-			-- else ignores it, same as how `deck` defaults to Blue Deck for every mode
+			-- stake = 1 (White) is a harmless universal default -- only Seed Scout's start_run
+			-- falls back to it (self._meta_stake, if a draft survivor is ever missing a .stake),
+			-- everyone else ignores it, same as how `deck` defaults to Blue Deck for every mode
 			-- regardless of whether that mode actually uses a single deck.
 			lobby:set_metadata({ gamemode = _pending_gamemode_key, deck = SPDRN.Deck.DEFAULT, ruleset = SPDRN.Ruleset.ORDER, kind = SPDRN.LobbyKind.PRIVATE, stake = 1 })
 			_pending_gamemode_key = nil

@@ -31,22 +31,15 @@ function SPDRN.lobby.create_buttons()
 			end
 			-- Multi-deck modes (e.g. White Stake Triple) need one deck per run chosen up front
 			-- via the deck picker; block START until enough are saved. Naturally a no-op for
-			-- Challenge (required_deck_count defaults to 1, no ban_pick) and All Deck
-			-- (ban_pick.keep = 0, so required_deck_count returns 0) -- neither needs a deck
-			-- picked up front, so `need > 1` is false for both.
+			-- every always_draft mode (Challenge/Seed Scout keep=1, All Deck keep=0) -- none of
+			-- them show a deck picker at all (draft_panel instead), so `need > 1` is false or
+			-- there's no meta.deck to gate on regardless.
 			local need = SPDRN.required_deck_count(gm)
 			if need > 1 then
 				local have = type(meta.deck) == 'table' and #meta.deck or 1
 				if have < need then
 					return false
 				end
-			end
-			-- Challenge/Seed Scout need their extra pick (challenge / stake) made before START.
-			if gm.picks_challenge and not meta.challenge then
-				return false
-			end
-			if gm.picks_stake and not meta.stake then
-				return false
 			end
 			for _, p in ipairs(players) do
 				if p.id ~= lobby.player_id and not L.ready:is_ready(p.id) then

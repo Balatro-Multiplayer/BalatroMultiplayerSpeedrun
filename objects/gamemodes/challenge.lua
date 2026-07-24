@@ -1,3 +1,46 @@
+-- §16.4: a real drafted pool of random Challenge presets, same shape as Gold Stake
+-- Single/Stake Climb's 5-candidate deck draft -- previously this mode had no
+-- pick/ban at all, just a host-only cycle through the FULL G.CHALLENGES list
+-- written straight into lobby metadata. Tiles are ban_pick's ordinary deck-back
+-- Cards (the engine is deck-shaped), so each pool item pins a fixed neutral
+-- Red Deck back purely for tile art and carries the real challenge id/name as
+-- metadata; decorate_tile labels the tile with the challenge's name so players
+-- can actually tell them apart.
+local function challenge_pool(count)
+	local indices = {}
+	for i = 1, #G.CHALLENGES do
+		indices[i] = i
+	end
+	for i = #indices, 2, -1 do
+		local j = math.random(i)
+		indices[i], indices[j] = indices[j], indices[i]
+	end
+	local pool = {}
+	for i = 1, math.min(count, #indices) do
+		local c = G.CHALLENGES[indices[i]]
+		pool[i] = { key = 'b_red', challenge_id = c.id, challenge_name = c.name or c.id }
+	end
+	return pool
+end
+
+local function decorate_challenge_tile(card, item)
+	if not (type(item) == 'table' and item.challenge_name) then
+		return
+	end
+	card.children.mp_challenge_label = UIBox({
+		definition = {
+			n = G.UIT.ROOT,
+			config = { padding = 0, colour = G.C.CLEAR },
+			nodes = {
+				{ n = G.UIT.R, config = { r = 0.08, padding = 0.06, align = 'cm', minw = card.T.w - 0.1, colour = G.C.BLACK, shadow = true }, nodes = {
+					{ n = G.UIT.T, config = { text = item.challenge_name, colour = G.C.UI.TEXT_LIGHT, scale = 0.26, shadow = true } },
+				} },
+			},
+		},
+		config = { align = 'tmi', offset = { x = 0, y = -0.4 }, parent = card },
+	})
+end
+
 MPAPI.GameMode({
 	key = SPDRN.Gamemode.CHALLENGE,
 	display_name = 'Challenge',
@@ -5,10 +48,15 @@ MPAPI.GameMode({
 		public = 16,
 		private = 16,
 	},
-	-- Drives the lobby's deck-panel dispatcher (ui/lobby/controls.lua) to show a "Choose
-	-- Challenge" button instead of "Choose Deck" -- the challenge itself fixes the deck, there
-	-- is nothing else to draft, so this mode has no ban_pick at all.
-	picks_challenge = true,
+	-- Opts into MPAPI.BanPick.start running in private lobbies too, not just matchmaking (this
+	-- mode is never queueable, same rationale as All Deck).
+	always_draft = true,
+	ban_pick = {
+		pool_size = 5,
+		keep = 1,
+		build_pool = function() return challenge_pool(5) end,
+		decorate_tile = decorate_challenge_tile,
+	},
 	init = function(self)
 		self._win_fired = false
 		self._forfeited = {}
@@ -43,12 +91,12 @@ MPAPI.GameMode({
 		end
 		return { winner = winner_id }
 	end,
-	start_run = function(self, deck_name, seed)
-		-- self._meta_challenge is stamped by SPDRN.begin_run from the lobby metadata's
-		-- `challenge` field (set by the Choose Challenge picker) -- read directly rather than
-		-- cached in init(), since init() runs before begin_run stamps it (same ordering as
-		-- White Stake Triple's own _run_decks/_base_seed).
-		local challenge_id = self._meta_challenge
+	start_run = function(self, deck_ref, seed)
+		-- deck_ref is a { key, challenge_id, challenge_name } draft survivor in matchmaking/
+		-- private-lobby play (always_draft); practice mode has no draft (solo, per
+		-- ui/main_menu/practice.lua) and instead stamps the id straight into lobby metadata,
+		-- read here via self._meta_challenge (see SPDRN.begin_run).
+		local challenge_id = (type(deck_ref) == 'table' and deck_ref.challenge_id) or self._meta_challenge
 		local idx = challenge_id and get_challenge_int_from_id(challenge_id)
 		local challenge = idx and idx > 0 and G.CHALLENGES[idx]
 		if not challenge then

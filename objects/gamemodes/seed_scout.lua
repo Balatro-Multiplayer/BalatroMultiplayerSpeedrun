@@ -3,6 +3,34 @@
 -- shorten for local iteration/testing without hunting through the file.
 SPDRN.SEED_SCOUT_DURATION = 300
 
+-- §16.4: a combined deck+stake draft, the same shape PvP itself uses for its own
+-- matches (pvp_api/actions/run_lifecycle.lua's BAN_PICK) -- pool items are
+-- { key = <deck back>, stake = <1-8> } pairs, decorated with the vanilla stake
+-- sticker. Previously this mode drafted only the deck (a plain 5-pool ban_pick)
+-- and picked the stake through an entirely separate host-only metadata button,
+-- uncoordinated with the deck draft and never exposed to the other player at all.
+local function scout_pool(count)
+	local keys = {}
+	for _, center in ipairs(G.P_CENTER_POOLS.Back or {}) do
+		keys[#keys + 1] = center.key
+	end
+	for i = #keys, 2, -1 do
+		local j = math.random(i)
+		keys[i], keys[j] = keys[j], keys[i]
+	end
+	local pool = {}
+	for i = 1, math.min(count, #keys) do
+		pool[i] = { key = keys[i], stake = math.random(8) }
+	end
+	return pool
+end
+
+local function decorate_scout_tile(card, item)
+	if type(item) == 'table' and item.stake then
+		card.sticker = G.sticker_map[SMODS.stake_from_index(item.stake)]
+	end
+end
+
 MPAPI.GameMode({
 	key = SPDRN.Gamemode.SEED_SCOUT,
 	display_name = 'Seed Scout',
@@ -13,11 +41,15 @@ MPAPI.GameMode({
 	-- The whole mechanic is committing to and mastering one specific seed -- re-rolling mid-
 	-- format would undermine that, same rationale as White Stake Triple's seed lock.
 	seed_change_allowed = false,
-	-- Up-front single deck pick, same as Gold Stake Single.
-	ban_pick = { pool_size = 5, keep = 1 },
-	-- Drives the lobby controls dispatcher (ui/lobby/controls.lua) to also show a "Choose
-	-- Stake" button alongside the deck panel -- the only mode that needs a host-picked stake.
-	picks_stake = true,
+	-- Opts into MPAPI.BanPick.start running in private lobbies too, not just matchmaking (this
+	-- mode is never queueable, same rationale as All Deck/Challenge).
+	always_draft = true,
+	ban_pick = {
+		pool_size = 5,
+		keep = 1,
+		build_pool = function() return scout_pool(5) end,
+		decorate_tile = decorate_scout_tile,
+	},
 	init = function(self)
 		-- 'scout' (5-minute $500 free-play window on the match's seed/deck/stake, thrown away)
 		-- -> 'race' (the real timed run, regular money, same seed/deck/stake).
@@ -77,7 +109,7 @@ MPAPI.GameMode({
 		end
 		return true
 	end,
-	start_run = function(self, deck_name, seed)
+	start_run = function(self, deck_ref, seed)
 		self._scout_restart_pending = false
 		-- Multi-run-style progression (scout restarts, and the scout->race transition) reaches
 		-- start_run directly (not via safe_start_run), so tear down here too, same as White
@@ -86,13 +118,20 @@ MPAPI.GameMode({
 
 		-- Lock in the deck/seed/stake on the very first call (the initial scout start) and
 		-- reuse them for every subsequent call (scout-death restarts, the scout->race
-		-- transition) -- self._meta_stake (from lobby metadata, via the Choose Stake picker) is
-		-- only meaningful here, at match start, not on later calls.
+		-- transition). deck_ref is a { key, stake } draft survivor in matchmaking/private-lobby
+		-- play (always_draft); practice mode has no draft (solo) and instead passes a plain
+		-- deck ref plus self._meta_stake from lobby metadata (see SPDRN.begin_run).
 		if not self._scout_locked then
 			self._scout_locked = true
-			self._scout_deck = deck_name
+			local deck_key, stake
+			if type(deck_ref) == 'table' then
+				deck_key, stake = deck_ref.key, deck_ref.stake
+			else
+				deck_key = deck_ref
+			end
+			self._scout_deck = deck_key
 			self._scout_seed = seed
-			self._scout_stake = self._meta_stake or 1
+			self._scout_stake = stake or self._meta_stake or 1
 		end
 
 		local key = SPDRN.resolve_back_key(self._scout_deck)

@@ -42,7 +42,9 @@ MPAPI.ActionType({
 			MPAPI.BanPick.start(lobby, {
 				pool_size = gm_def.ban_pick.pool_size,
 				keep = gm_def.ban_pick.keep,
+				schedule = gm_def.ban_pick.schedule,
 				build_pool = gm_def.ban_pick.build_pool,
+				decorate_tile = gm_def.ban_pick.decorate_tile,
 				state_action = 'spdrn_ban_pick_state',
 				ban_action = 'spdrn_ban_pick_ban',
 				on_refresh = function()
