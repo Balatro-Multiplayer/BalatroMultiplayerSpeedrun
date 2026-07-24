@@ -105,9 +105,10 @@ MPAPI.on_loaded(function()
 	-- has already returned, which is why it's the safe place to perform it. Same reasoning
 	-- for the deferred starting-money override (Seed Scout's scouting budget), Seed
 	-- Scout's own wall-clock scouting-phase timer (defined in objects/gamemodes/seed_scout.lua,
-	-- not shared code -- it only inspects Seed-Scout-specific instance state), and the
-	-- §16.7 match-duration cap (objects/matchmaking/duration.lua) -- another wall-clock
-	-- check with no engine event to react to instead.
+	-- not shared code -- it only inspects Seed-Scout-specific instance state), the
+	-- §16.7 match-duration cap (objects/matchmaking/duration.lua), and the §16.11
+	-- enemy-location broadcast (objects/matchmaking/location.lua) -- all wall-clock/
+	-- poll checks with no single engine event to react to instead.
 	if not SPDRN._game_over_hooked then
 		SPDRN._game_over_hooked = true
 		local _spdrn_update_ref = Game.update
@@ -118,6 +119,7 @@ MPAPI.on_loaded(function()
 			pcall(SPDRN._check_pending_dollars_override)
 			pcall(SPDRN._check_seed_scout_timer)
 			pcall(SPDRN._check_match_duration)
+			pcall(SPDRN._check_location_broadcast)
 		end
 	end
 

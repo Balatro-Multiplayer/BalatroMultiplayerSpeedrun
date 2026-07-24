@@ -55,6 +55,10 @@ function SPDRN.reset_match_progress()
 	-- retry-on-receipt needs a signal that survives a nil winner id.
 	SPDRN._match_result_pending = false
 	SPDRN._match_timeout_fired = false
+	-- §16.11: per-player live location tracking (Enemy Location Indicator),
+	-- keyed by sender id -- see objects/matchmaking/location.lua.
+	SPDRN._locations = {}
+	SPDRN._last_broadcast_location = nil
 end
 
 -- Called at the start of every individual run, first and subsequent, within a

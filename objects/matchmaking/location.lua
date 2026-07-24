@@ -1,0 +1,69 @@
+-- §16.11: Enemy Location Indicator. Each client broadcasts its own current
+-- ante/round whenever it changes; every other client stores it keyed by
+-- SENDER id in SPDRN._locations, never overwriting a single shared "the
+-- enemy" scalar. This deliberately avoids PvP's own Enemy Location HUD bug
+-- (ROADMAP.md §17.11, still open there): PvP's equivalent broadcast
+-- (pvp_location) is received unconditionally into one global
+-- PVP.GAME.enemy.location field regardless of which lobby member sent it, so
+-- in any N>2 mode the last broadcast to arrive stomps every other player's
+-- location -- a last-write-wins race, not scoped to any particular opponent.
+-- Keying by player id here means an N-player SPDRN lobby (up to 16) never
+-- has that problem: every player's own last-known location is independently
+-- tracked and correct regardless of broadcast ordering.
+SPDRN._locations = SPDRN._locations or {}
+
+local function current_location()
+	if not G.GAME then
+		return nil
+	end
+	return {
+		ante = (G.GAME.round_resets and G.GAME.round_resets.ante) or 1,
+		round = G.GAME.round or 0,
+	}
+end
+
+-- Polled every frame from this file's own Game:update hook (below), the same
+-- wall-clock/poll pattern as SPDRN._check_seed_scout_timer and
+-- SPDRN._check_match_duration -- there is no single engine event covering
+-- every way a run's ante/round can change (shop, blind select, mid-round).
+function SPDRN._check_location_broadcast()
+	if not (MPAPI.is_active(SPDRN.id) and MPAPI.get_current_lobby()) then
+		return
+	end
+	if not (G.GAME and G.STAGE == G.STAGES.RUN) then
+		return
+	end
+	local lobby = MPAPI.get_current_lobby()
+	local loc = current_location()
+	if not loc then
+		return
+	end
+	local last = SPDRN._last_broadcast_location
+	if last and last.ante == loc.ante and last.round == loc.round then
+		return
+	end
+	SPDRN._last_broadcast_location = loc
+	SPDRN._locations[lobby.player_id] = loc
+	lobby:action(MPAPI.ActionTypes['spdrn_location']):broadcast(loc)
+end
+
+-- The furthest-along OTHER player's location (design doc: "a single indicator
+-- for the furthest-along opponent's current ante and round") -- excludes the
+-- local player themselves, even if they're actually in the lead. Returns
+-- nil, nil if no other player has broadcast a location yet.
+function SPDRN.furthest_opponent_location()
+	local lobby = MPAPI.get_current_lobby()
+	if not lobby then
+		return nil, nil
+	end
+	local best_id, best_loc
+	for _, p in ipairs(lobby:get_players()) do
+		if p.id ~= lobby.player_id then
+			local loc = SPDRN._locations[p.id]
+			if loc and (not best_loc or loc.ante > best_loc.ante or (loc.ante == best_loc.ante and loc.round > best_loc.round)) then
+				best_id, best_loc = p.id, loc
+			end
+		end
+	end
+	return best_id, best_loc
+end
