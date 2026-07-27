@@ -35,10 +35,10 @@ MPAPI.GameMode({
 	-- schedule size itself off the real vanilla-deck count via build_pool rather than a
 	-- hardcoded number that could drift on a future game update.
 	--
-	-- Known, accepted limitation: MPAPI.BanPick's turn engine is strictly 2-actor (host + one
-	-- other player) regardless of lobby size -- in a 3-16 player lobby, only 2 of the players
-	-- actually take turns in the draft; the rest just play whatever order results. Extending
-	-- BanPick to true N-player turn order is out of scope (see the implementation plan).
+	-- MPAPI.BanPick's turn engine rotates through every player actually in the lobby (order
+	-- built from all of lobby:get_players(), not just host+1 -- see §17.7 in
+	-- BalatroMultiplayerAPI/api/ban_pick.lua's resolve_actor), so a 3-16 player draft has every
+	-- player taking turns, not just two. Confirmed live with a real 6-player lobby.
 	ban_pick = { keep = 0, build_pool = SPDRN.vanilla_deck_pool },
 	init = function(self)
 		self._run_count = 0

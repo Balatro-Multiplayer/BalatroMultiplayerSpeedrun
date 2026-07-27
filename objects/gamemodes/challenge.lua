@@ -2,10 +2,17 @@
 -- Single/Stake Climb's 5-candidate deck draft -- previously this mode had no
 -- pick/ban at all, just a host-only cycle through the FULL G.CHALLENGES list
 -- written straight into lobby metadata. Tiles are ban_pick's ordinary deck-back
--- Cards (the engine is deck-shaped), so each pool item pins a fixed neutral
--- Red Deck back purely for tile art and carries the real challenge id/name as
--- metadata; decorate_tile labels the tile with the challenge's name so players
--- can actually tell them apart.
+-- Cards (the engine is deck-shaped), so each pool item carries the real challenge
+-- id/name as metadata; decorate_tile labels the tile with the challenge's name so
+-- players can actually tell them apart.
+--
+-- Each item's back key must be genuinely distinct across the pool: ban_pick tracks
+-- banned/survivor state in a table keyed by item_key(item) (see ban_pick.lua), so
+-- items sharing one key would all get banned together the instant any one of them
+-- is banned -- confirmed live, this soft-locked every real Challenge draft after
+-- its first ban when every candidate pinned the same fixed 'b_red' key. Cycling
+-- through the vanilla deck-back pool gives each tile a distinct key (and, as a
+-- side effect, a more distinguishable card back than 5 identical Red Decks).
 local function challenge_pool(count)
 	local indices = {}
 	for i = 1, #G.CHALLENGES do
@@ -15,10 +22,12 @@ local function challenge_pool(count)
 		local j = math.random(i)
 		indices[i], indices[j] = indices[j], indices[i]
 	end
+	local back_keys = SPDRN.vanilla_deck_pool()
 	local pool = {}
 	for i = 1, math.min(count, #indices) do
 		local c = G.CHALLENGES[indices[i]]
-		pool[i] = { key = 'b_red', challenge_id = c.id, challenge_name = c.name or c.id }
+		local back_key = back_keys[((i - 1) % #back_keys) + 1]
+		pool[i] = { key = back_key, challenge_id = c.id, challenge_name = c.name or c.id }
 	end
 	return pool
 end
