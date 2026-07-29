@@ -25,7 +25,7 @@ local function loc_text(loc)
 	if not loc then
 		return 'Unknown'
 	end
-	return 'Ante ' .. tostring(loc.ante) .. '.' .. tostring(loc.round)
+	return 'Run ' .. tostring(loc.run or 1) .. ', Ante ' .. tostring(loc.ante) .. '.' .. tostring(loc.round)
 end
 
 local function build_expanded_popup(major_node)

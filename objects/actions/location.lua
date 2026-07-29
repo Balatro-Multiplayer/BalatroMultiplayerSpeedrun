@@ -8,6 +8,6 @@ MPAPI.ActionType({
 		if not params then
 			return
 		end
-		SPDRN._locations[from_player_id] = { ante = params.ante, round = params.round }
+		SPDRN._locations[from_player_id] = { run = params.run, ante = params.ante, round = params.round }
 	end,
 })
