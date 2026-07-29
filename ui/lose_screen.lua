@@ -104,6 +104,39 @@ function SPDRN.lose_body(buttons, defeated_by_blind)
 		right_col[#right_col + 1] = b
 	end
 
+	local panel_nodes = {}
+	for _, row in ipairs(SPDRN.build_end_game_extras()) do
+		panel_nodes[#panel_nodes + 1] = row
+	end
+	panel_nodes[#panel_nodes + 1] = { n = G.UIT.R, config = { align = 'cm', padding = 0.08 }, nodes = {
+		create_UIBox_round_scores_row('hand'),
+		create_UIBox_round_scores_row('poker_hand'),
+	} }
+	panel_nodes[#panel_nodes + 1] = {
+		n = G.UIT.R,
+		config = { align = 'cm' },
+		nodes = {
+			{
+				n = G.UIT.C,
+				config = { align = 'cm', padding = 0.08 },
+				nodes = {
+					create_UIBox_round_scores_row('cards_played', G.C.BLUE),
+					create_UIBox_round_scores_row('cards_discarded', G.C.RED),
+					create_UIBox_round_scores_row('cards_purchased', G.C.MONEY),
+					create_UIBox_round_scores_row('times_rerolled', G.C.GREEN),
+					create_UIBox_round_scores_row('new_collection', G.C.WHITE),
+					create_UIBox_round_scores_row('seed', G.C.WHITE),
+					UIBox_button({ button = 'copy_seed', label = { localize('b_copy') }, colour = G.C.BLUE, scale = 0.3, minw = 2.3, minh = 0.4, focus_args = { nav = 'wide' } }),
+				},
+			},
+			{
+				n = G.UIT.C,
+				config = { align = 'tr', padding = 0.08 },
+				nodes = right_col,
+			},
+		},
+	}
+
 	return {
 		n = G.UIT.R,
 		config = { align = 'cm', padding = 0.15 },
@@ -115,36 +148,7 @@ function SPDRN.lose_body(buttons, defeated_by_blind)
 					{
 						n = G.UIT.R,
 						config = { align = 'cm', padding = 0.05, colour = G.C.BLACK, emboss = 0.05, r = 0.1 },
-						nodes = {
-							{ n = G.UIT.R, config = { align = 'cm', padding = 0.08 }, nodes = {
-								create_UIBox_round_scores_row('hand'),
-								create_UIBox_round_scores_row('poker_hand'),
-							} },
-							{
-								n = G.UIT.R,
-								config = { align = 'cm' },
-								nodes = {
-									{
-										n = G.UIT.C,
-										config = { align = 'cm', padding = 0.08 },
-										nodes = {
-											create_UIBox_round_scores_row('cards_played', G.C.BLUE),
-											create_UIBox_round_scores_row('cards_discarded', G.C.RED),
-											create_UIBox_round_scores_row('cards_purchased', G.C.MONEY),
-											create_UIBox_round_scores_row('times_rerolled', G.C.GREEN),
-											create_UIBox_round_scores_row('new_collection', G.C.WHITE),
-											create_UIBox_round_scores_row('seed', G.C.WHITE),
-											UIBox_button({ button = 'copy_seed', label = { localize('b_copy') }, colour = G.C.BLUE, scale = 0.3, minw = 2.3, minh = 0.4, focus_args = { nav = 'wide' } }),
-										},
-									},
-									{
-										n = G.UIT.C,
-										config = { align = 'tr', padding = 0.08 },
-										nodes = right_col,
-									},
-								},
-							},
-						},
+						nodes = panel_nodes,
 					},
 				},
 			},

@@ -16,6 +16,7 @@ MPAPI.ActionType({
 			best_run_time_ms = params.best_run_time_ms,
 			jokers = params.jokers,
 			deck_back = params.deck_back,
+			deck = params.deck,
 		}
 
 		-- §16.10: the roster screen (if currently open) reacts live as each

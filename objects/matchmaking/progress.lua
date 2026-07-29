@@ -36,6 +36,59 @@ local function capture_local_deck_back()
 	return SPDRN.resolve_back_key(SPDRN._run_deck)
 end
 
+-- §16.10/17: the local player's full final deck, encoded as one
+-- semicolon-joined string of "suit-rank-enhancement-edition-seal" per card --
+-- the same wire format PvP's card_to_string/load_nemesis_deck (lib/card_utils.lua,
+-- networking/action_handlers.lua) uses, reused here so a player's final deck
+-- can be rebuilt as real playing cards on the end-screen (ui/deck_view.lua)
+-- instead of only ever showing a deck_back label. Rides along on the same
+-- spdrn_player_result broadcast as jokers/deck_back.
+local RANK_TO_STRING = { ['10'] = 'T', Jack = 'J', Queen = 'Q', King = 'K', Ace = 'A' }
+local _reversed_centers = nil
+
+local function true_key(tbl)
+	if not tbl then
+		return nil
+	end
+	for k, v in pairs(tbl) do
+		if v == true then
+			return k
+		end
+	end
+	return nil
+end
+
+local function card_to_string(card)
+	if not card or not card.base or not card.base.suit or not card.base.value then
+		return nil
+	end
+	if not _reversed_centers then
+		_reversed_centers = {}
+		for k, v in pairs(G.P_CENTERS) do
+			_reversed_centers[v] = k
+		end
+	end
+	local suit = string.sub(card.base.suit, 1, 1)
+	local rank = RANK_TO_STRING[card.base.value] or card.base.value
+	local enhancement = (card.config and _reversed_centers[card.config.center]) or 'none'
+	local edition = true_key(card.edition) or 'none'
+	local seal = card.seal or 'none'
+	return suit .. '-' .. rank .. '-' .. enhancement .. '-' .. edition .. '-' .. seal
+end
+
+local function capture_local_deck()
+	local cards = {}
+	if G.playing_cards then
+		for _, card in ipairs(G.playing_cards) do
+			local s = card_to_string(card)
+			if s then
+				cards[#cards + 1] = s
+			end
+		end
+	end
+	return table.concat(cards, ';')
+end
+
 -- Called once per match (SPDRN.begin_run), before the first run starts.
 function SPDRN.reset_match_progress()
 	SPDRN._progress = {
@@ -45,6 +98,7 @@ function SPDRN.reset_match_progress()
 		best_run_time_ms = nil,
 		jokers = {},
 		deck_back = nil,
+		deck = nil,
 		finalized = false,
 	}
 	SPDRN._collected_results = {}
@@ -105,6 +159,7 @@ function SPDRN.finalize_match_progress()
 		end
 		p.jokers = capture_local_jokers()
 		p.deck_back = capture_local_deck_back()
+		p.deck = capture_local_deck()
 	end
 	p.finalized = true
 	return p

@@ -1,31 +1,35 @@
--- §16.11: Enemy Location Indicator -- a small persistent HUD element during a
--- match showing the furthest-along opponent's current ante/round (data comes
--- from objects/matchmaking/location.lua). Hovering expands it into every
--- player's current location at once. Modeled structurally on SPDRN's own
--- speedrun-clock HUD (ui/timer/lifecycle.lua/appearance.lua): a standalone
--- UIBox, `major = G`, absolute world coordinates set directly on T.x/y and
--- VT.x/y -- proven (by that existing feature) to render correctly throughout
--- G.STAGE == RUN, unlike splicing into an existing HUD row's child slot the
--- way PvP's own equivalent does (which only works because PvP's row layout
--- already reserves a slot for it).
+-- §16.11: Enemy Location Indicator -- spliced directly into the native HUD's
+-- round/score row (row_dollars_chips), the same placement and stake-icon /
+-- colored-swatch styling PvP's own ui/game/enemy_location.lua uses, rather
+-- than a separate floating box. Data comes from objects/matchmaking/location.lua.
+-- Unlike PvP (single nemesis, shown as a blind-name/icon), this only ever
+-- displays "Run N, Ante M" for the furthest-along OTHER player -- no name, no
+-- round (round only matters internally for furthest_opponent_location's
+-- tiebreak) -- since SPDRN tracks progress through a race, not a 1v1 duel.
+-- Hovering still expands into every OTHER player's own current position by
+-- name (SPDRN is N-player; PvP's equivalent hover just re-shows the same
+-- single nemesis), restyled to match PvP's BOSS_MAIN hover-popup chrome.
+--
+-- The HUD row can get rebuilt from scratch by the base game on state
+-- transitions (entering the shop, blind-select, ...), wiping whatever's
+-- spliced into it -- rather than hooking every such transition individually
+-- (PvP's approach, in ui/game/game_state.lua/functions.lua), hud._tick just
+-- re-injects whenever its marker id goes missing, since it already polls
+-- every frame for the text update anyway.
 SPDRN.location_hud = SPDRN.location_hud or {}
 local hud = SPDRN.location_hud
 hud.text = 'Waiting for opponents...'
 
-local function player_display_name(lobby, player_id)
-	for _, p in ipairs(lobby:get_players()) do
-		if p.id == player_id then
-			return p.displayName or p.id
-		end
-	end
-	return player_id
-end
+local HUD_MARKER_ID = 'spdrn_enemy_location_box'
+hud.MARKER_ID = HUD_MARKER_ID
 
+-- Ante is always shown as a plain integer; round is tracked purely for
+-- furthest_opponent_location's tiebreak, never displayed.
 local function loc_text(loc)
 	if not loc then
 		return 'Unknown'
 	end
-	return 'Run ' .. tostring(loc.run or 1) .. ', Ante ' .. tostring(loc.ante) .. '.' .. tostring(loc.round)
+	return 'Run ' .. tostring(loc.run or 1) .. ', Ante ' .. tostring(loc.ante)
 end
 
 local function build_expanded_popup(major_node)
@@ -46,7 +50,7 @@ local function build_expanded_popup(major_node)
 		} }
 	end
 	return UIBox({
-		definition = { n = G.UIT.ROOT, config = { align = 'cm', padding = 0.1, colour = G.C.BLACK, r = 0.1, emboss = 0.05, minw = 3.5 }, nodes = rows },
+		definition = { n = G.UIT.ROOT, config = { align = 'cm', padding = 0.1, colour = G.C.DYN_UI.BOSS_MAIN, r = 0.25, emboss = 0.05, minw = 3.5 }, nodes = rows },
 		config = { align = 'tmi', offset = { x = 0, y = (major_node.T and major_node.T.h or 0.5) + 0.15 }, major = major_node },
 	})
 end
@@ -54,15 +58,15 @@ end
 -- Hand-rolled hover detection (the same technique PvP's own enemy_location.lua
 -- uses) rather than the base-game Card h_popup/Node.hover mechanism, which
 -- requires the hovering element to be (or convincingly fake being) a Card --
--- this indicator is a plain text node, not a Card.
+-- this indicator is a plain UI node, not a Card.
 local function install_hover(node)
 	if node._spdrn_hover_installed then
 		return
 	end
 	node._spdrn_hover_installed = true
-	-- A plain G.UIT.ROOT/C node has no hover/collision detection by default
-	-- (unlike a button) -- both flags must be explicitly enabled, exactly as
-	-- PvP's own equivalent (mp_setup_hover_enemy_location_display) does.
+	-- A plain G.UIT.C node has no hover/collision detection by default (unlike
+	-- a button) -- both flags must be explicitly enabled, exactly as PvP's own
+	-- equivalent (mp_setup_hover_enemy_location_display) does.
 	node.states.collide.can = true
 	node.states.hover.can = true
 	local orig_hover = node.hover
@@ -97,52 +101,87 @@ local function install_hover(node)
 	end
 end
 
-local function build_indicator_definition()
-	return {
-		n = G.UIT.ROOT,
-		config = { align = 'cm', padding = 0.06, colour = G.C.BLACK, r = 0.1, emboss = 0.05, func = 'spdrn_install_location_hover' },
-		nodes = {
-			{ n = G.UIT.O, config = { align = 'cm', object = DynaText({
-				string = { { ref_table = hud, ref_value = 'text' } },
-				colours = { G.C.UI.TEXT_LIGHT },
-				scale = 0.35,
-				shadow = true,
-				pop_in_rate = 9999999,
-				silent = true,
-			}) } },
-		},
-	}
-end
-
 G.FUNCS.spdrn_install_location_hover = function(e)
 	install_hover(e)
 end
 
-hud._remove_box = function()
-	if hud._popup then
-		pcall(function() hud._popup:remove() end)
-		hud._popup = nil
+-- Vanilla's own row_dollars_chips content (functions/UI_definitions.lua's
+-- contents.dollars_chips), rebuilt here so hide_enemy_location can restore it
+-- exactly -- mirrors PvP's PVP.UI.round_score_definition().
+local function round_score_definition()
+	return {
+		n = G.UIT.C,
+		config = { align = 'cm', padding = 0.1 },
+		nodes = {
+			{ n = G.UIT.C, config = { align = 'cm', minw = 1.3 }, nodes = {
+				{ n = G.UIT.R, config = { align = 'cm', padding = 0, maxw = 1.3 }, nodes = {
+					{ n = G.UIT.T, config = { text = localize('k_round'), scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+				} },
+				{ n = G.UIT.R, config = { align = 'cm', padding = 0, maxw = 1.3 }, nodes = {
+					{ n = G.UIT.T, config = { text = localize('k_lower_score'), scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+				} },
+			} },
+			{ n = G.UIT.C, config = { align = 'cm', minw = 3.3, minh = 0.7, r = 0.1, colour = G.C.DYN_UI.BOSS_DARK }, nodes = {
+				{ n = G.UIT.O, config = { w = 0.5, h = 0.5, object = get_stake_sprite(G.GAME.stake or 1, 0.5), hover = true, can_collide = false } },
+				{ n = G.UIT.B, config = { w = 0.1, h = 0.1 } },
+				{ n = G.UIT.T, config = { ref_table = G.GAME, ref_value = 'chips_text', lang = G.LANGUAGES['en-us'], scale = 0.85, colour = G.C.WHITE, id = 'chip_UI_count', func = 'chip_UI_set', shadow = true } },
+			} },
+		},
+	}
+end
+
+local function enemy_location_definition()
+	return {
+		n = G.UIT.C,
+		config = { align = 'cm', padding = 0.1, id = HUD_MARKER_ID, func = 'spdrn_install_location_hover' },
+		nodes = {
+			{ n = G.UIT.O, config = { w = 0.5, h = 0.5, object = get_stake_sprite(G.GAME.stake or 1, 0.5), hover = true, can_collide = false } },
+			{ n = G.UIT.C, config = { align = 'cm', minw = 1.2 }, nodes = {
+				{ n = G.UIT.R, config = { align = 'cm', padding = 0, maxw = 1.2 }, nodes = {
+					{ n = G.UIT.T, config = { text = 'Enemy', scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+				} },
+				{ n = G.UIT.R, config = { align = 'cm', padding = 0, maxw = 1.2 }, nodes = {
+					{ n = G.UIT.T, config = { text = 'Location', scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+				} },
+			} },
+			{ n = G.UIT.C, config = { align = 'cm', minw = 2.8, minh = 0.7, r = 0.1, colour = G.C.DYN_UI.BOSS_DARK }, nodes = {
+				{ n = G.UIT.C, config = { align = 'cm', maxw = 2.6 }, nodes = {
+					{ n = G.UIT.O, config = { object = DynaText({
+						string = { { ref_table = hud, ref_value = 'text' } },
+						colours = { G.C.WHITE },
+						scale = 0.35,
+						shadow = true,
+						pop_in_rate = 9999999,
+						silent = true,
+					}) } },
+				} },
+			} },
+		},
+	}
+end
+
+local function show_enemy_location()
+	if not G.HUD then
+		return
 	end
-	if hud._box then
-		pcall(function() hud._box:remove() end)
-		hud._box = nil
+	local row = G.HUD:get_UIE_by_ID('row_dollars_chips')
+	if row and row.children[1] then
+		row.children[1]:remove()
+		row.children[1] = nil
+		G.HUD:add_child(enemy_location_definition(), row)
 	end
 end
 
-hud._build_box = function()
-	local def = build_indicator_definition()
-	local box = UIBox({
-		definition = def,
-		config = { align = '', offset = { x = 0, y = 0 }, major = G, bond = 'Weak' },
-	})
-	local rw = (G.ROOM and G.ROOM.T and G.ROOM.T.w) or 0
-	local x = rw / 2 - (box.T.w or 0) / 2
-	local y = 8.6
-	box.T.x = x
-	box.T.y = y
-	box.VT.x = x
-	box.VT.y = y
-	return box
+local function hide_enemy_location()
+	if not G.HUD then
+		return
+	end
+	local row = G.HUD:get_UIE_by_ID('row_dollars_chips')
+	if row and row.children[1] then
+		row.children[1]:remove()
+		row.children[1] = nil
+		G.HUD:add_child(round_score_definition(), row)
+	end
 end
 
 function hud._tick()
@@ -153,28 +192,31 @@ function hud._tick()
 	end
 
 	if not in_match then
-		if hud._box then
-			hud._remove_box()
+		if hud._shown then
+			pcall(hide_enemy_location)
+			hud._shown = false
 		end
 		return
 	end
 
 	local best_id, best_loc = SPDRN.furthest_opponent_location()
-	if best_id then
-		local lobby = MPAPI.get_current_lobby()
-		hud.text = player_display_name(lobby, best_id) .. ':  ' .. loc_text(best_loc)
-	else
-		hud.text = 'Waiting for opponents...'
-	end
+	hud.text = best_id and loc_text(best_loc) or 'Waiting for opponents...'
 
-	if hud._box and hud._box.REMOVED then
-		hud._box = nil
+	if not (G.HUD and G.HUD:get_UIE_by_ID(HUD_MARKER_ID)) then
+		pcall(show_enemy_location)
 	end
-	if not hud._box then
-		local ok, box = pcall(hud._build_box)
-		if ok then
-			hud._box = box
-		end
+	hud._shown = true
+end
+
+-- Exposed for the roster/end-screen and tests; not needed by hud._tick itself.
+hud._remove_box = function()
+	if hud._popup then
+		pcall(function() hud._popup:remove() end)
+		hud._popup = nil
+	end
+	if hud._shown then
+		pcall(hide_enemy_location)
+		hud._shown = false
 	end
 end
 
