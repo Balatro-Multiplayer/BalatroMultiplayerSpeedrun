@@ -81,14 +81,25 @@ function SPDRN.end_screen_buttons(is_winner)
 end
 
 -- The speedrun-specific body of the lose screen, rendered inside the shared
--- MPAPI.end_screen shell.
-function SPDRN.lose_body(buttons)
+-- MPAPI.end_screen shell. `defeated_by_blind` gates the base game's
+-- "Defeated By" row (the blind that beat you): it only makes sense when the
+-- run actually ended by dying to a blind mid-run. The base-game renderer
+-- reads G.GAME.blind.config.blind unconditionally, which for every OTHER
+-- loss reason here (an opponent won the race, a self-forfeit) is whatever
+-- blind happens to be on deck -- usually not even selected yet -- and its
+-- name has no matching localization entry, rendering literally as "ERROR"
+-- instead of a blind name (reproduced live: a losing player sitting on the
+-- very first blind-select screen when an opponent won showed "Defeated By
+-- ERROR"). Only show_run_lost_screen has that "died to a blind" context.
+function SPDRN.lose_body(buttons, defeated_by_blind)
 	local right_col = {
 		create_UIBox_round_scores_row('furthest_ante', G.C.FILTER),
 		create_UIBox_round_scores_row('furthest_round', G.C.FILTER),
-		create_UIBox_round_scores_row('defeated_by'),
-		{ n = G.UIT.R, config = { align = 'cm', minh = 0.2, minw = 0.1 }, nodes = {} },
 	}
+	if defeated_by_blind then
+		right_col[#right_col + 1] = create_UIBox_round_scores_row('defeated_by')
+	end
+	right_col[#right_col + 1] = { n = G.UIT.R, config = { align = 'cm', minh = 0.2, minw = 0.1 }, nodes = {} }
 	for _, b in ipairs(buttons or SPDRN.end_screen_buttons(false)) do
 		right_col[#right_col + 1] = b
 	end
@@ -160,7 +171,9 @@ end
 -- `keep_timer_running` is set only for the run-lost-to-a-blind screen: that's a restartable
 -- run loss, not the match ending, so the speedrun clock must keep counting (including the time
 -- spent deciding on this screen). Every terminal screen -- win, opponent-won, forfeit -- leaves
--- it unset so the timer freezes at the match's final time.
+-- it unset so the timer freezes at the match's final time. It doubles as the "did we actually
+-- die to a blind" signal for lose_body's defeated_by row, above -- true in exactly the same
+-- one case.
 SPDRN.show_lose_screen = function(buttons, keep_timer_running)
 	if SPDRN.timer and not keep_timer_running then
 		SPDRN.timer.stop()
@@ -173,7 +186,7 @@ SPDRN.show_lose_screen = function(buttons, keep_timer_running)
 		room_jiggle = 3,
 		quip = { prefix = 'lq_', max = 10 },
 		body = function()
-			return SPDRN.lose_body(buttons)
+			return SPDRN.lose_body(buttons, keep_timer_running)
 		end,
 	})
 end
