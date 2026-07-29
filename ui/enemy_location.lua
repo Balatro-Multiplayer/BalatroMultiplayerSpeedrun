@@ -8,7 +8,12 @@
 -- tiebreak) -- since SPDRN tracks progress through a race, not a 1v1 duel.
 -- Hovering still expands into every OTHER player's own current position by
 -- name (SPDRN is N-player; PvP's equivalent hover just re-shows the same
--- single nemesis), restyled to match PvP's BOSS_MAIN hover-popup chrome.
+-- single nemesis), each row built from the same [label][colored swatch]
+-- component as the main indicator itself (location_component below), just
+-- without the stake icon and with the player's name as the label. The popup
+-- opens upward (major's top edge, not its bottom) since the indicator sits
+-- at the very top of the screen -- expanding downward would just draw over
+-- the blind-select/shop UI directly beneath it.
 --
 -- The HUD row can get rebuilt from scratch by the base game on state
 -- transitions (entering the shop, blind-select, ...), wiping whatever's
@@ -32,15 +37,41 @@ local function loc_text(loc)
 	return 'Run ' .. tostring(loc.run or 1) .. ', Ante ' .. tostring(loc.ante)
 end
 
+-- The shared [icon?][label][colored swatch] layout: the main HUD indicator
+-- passes a stake icon + the static "Enemy"/"Location" label; each hover-popup
+-- row passes no icon and a player's name as the label instead, so the popup
+-- rows are genuinely built from the same component, not a lookalike copy.
+local function location_component(icon_node, label_nodes, swatch_node, swatch_minw)
+	local nodes = {}
+	if icon_node then
+		nodes[#nodes + 1] = icon_node
+	end
+	nodes[#nodes + 1] = { n = G.UIT.C, config = { align = 'cm', minw = 1.2 }, nodes = label_nodes }
+	nodes[#nodes + 1] = { n = G.UIT.C, config = { align = 'cm', minw = swatch_minw or 2.8, minh = 0.7, r = 0.1, colour = G.C.DYN_UI.BOSS_DARK }, nodes = { swatch_node } }
+	return { n = G.UIT.C, config = { align = 'cm', padding = 0.1 }, nodes = nodes }
+end
+
+local function location_row_definition(name, position_text)
+	local label_nodes = { { n = G.UIT.R, config = { align = 'cm' }, nodes = {
+		{ n = G.UIT.T, config = { text = name, scale = 0.4, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+	} } }
+	local swatch = { n = G.UIT.T, config = { text = position_text, scale = 0.32, colour = G.C.WHITE, shadow = true } }
+	return { n = G.UIT.R, config = { align = 'cm', padding = 0.05 }, nodes = { location_component(nil, label_nodes, swatch, 2.2) } }
+end
+
+-- Opens ABOVE major_node (align 'tm' with a negative y offset positions this
+-- box's bottom edge just above major's top edge -- see Moveable:align_to_major
+-- in the base game engine: without the 'i' suffix, 't' anchors via
+-- `offset.y - self.T.h`, so the box's own height pushes it further up as it
+-- grows, rather than major's height pushing it further down like the old
+-- 'tmi' + major.T.h version did).
 local function build_expanded_popup(major_node)
 	local lobby = MPAPI.get_current_lobby()
 	local rows = {}
 	if lobby then
 		for _, p in ipairs(lobby:get_players()) do
 			if p.id ~= lobby.player_id then
-				rows[#rows + 1] = { n = G.UIT.R, config = { align = 'cm', padding = 0.05 }, nodes = {
-					{ n = G.UIT.T, config = { text = (p.displayName or p.id) .. ':  ' .. loc_text(SPDRN._locations[p.id]), scale = 0.32, colour = G.C.UI.TEXT_LIGHT } },
-				} }
+				rows[#rows + 1] = location_row_definition(p.displayName or p.id, loc_text(SPDRN._locations[p.id]))
 			end
 		end
 	end
@@ -51,7 +82,7 @@ local function build_expanded_popup(major_node)
 	end
 	return UIBox({
 		definition = { n = G.UIT.ROOT, config = { align = 'cm', padding = 0.1, colour = G.C.DYN_UI.BOSS_MAIN, r = 0.25, emboss = 0.05, minw = 3.5 }, nodes = rows },
-		config = { align = 'tmi', offset = { x = 0, y = (major_node.T and major_node.T.h or 0.5) + 0.15 }, major = major_node },
+		config = { align = 'tm', offset = { x = 0, y = -0.15 }, major = major_node },
 	})
 end
 
@@ -131,33 +162,29 @@ local function round_score_definition()
 end
 
 local function enemy_location_definition()
-	return {
-		n = G.UIT.C,
-		config = { align = 'cm', padding = 0.1, id = HUD_MARKER_ID, func = 'spdrn_install_location_hover' },
-		nodes = {
-			{ n = G.UIT.O, config = { w = 0.5, h = 0.5, object = get_stake_sprite(G.GAME.stake or 1, 0.5), hover = true, can_collide = false } },
-			{ n = G.UIT.C, config = { align = 'cm', minw = 1.2 }, nodes = {
-				{ n = G.UIT.R, config = { align = 'cm', padding = 0, maxw = 1.2 }, nodes = {
-					{ n = G.UIT.T, config = { text = 'Enemy', scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
-				} },
-				{ n = G.UIT.R, config = { align = 'cm', padding = 0, maxw = 1.2 }, nodes = {
-					{ n = G.UIT.T, config = { text = 'Location', scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
-				} },
-			} },
-			{ n = G.UIT.C, config = { align = 'cm', minw = 2.8, minh = 0.7, r = 0.1, colour = G.C.DYN_UI.BOSS_DARK }, nodes = {
-				{ n = G.UIT.C, config = { align = 'cm', maxw = 2.6 }, nodes = {
-					{ n = G.UIT.O, config = { object = DynaText({
-						string = { { ref_table = hud, ref_value = 'text' } },
-						colours = { G.C.WHITE },
-						scale = 0.35,
-						shadow = true,
-						pop_in_rate = 9999999,
-						silent = true,
-					}) } },
-				} },
-			} },
-		},
+	local icon = { n = G.UIT.O, config = { w = 0.5, h = 0.5, object = get_stake_sprite(G.GAME.stake or 1, 0.5), hover = true, can_collide = false } }
+	local label_nodes = {
+		{ n = G.UIT.R, config = { align = 'cm', padding = 0, maxw = 1.2 }, nodes = {
+			{ n = G.UIT.T, config = { text = 'Enemy', scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+		} },
+		{ n = G.UIT.R, config = { align = 'cm', padding = 0, maxw = 1.2 }, nodes = {
+			{ n = G.UIT.T, config = { text = 'Location', scale = 0.42, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+		} },
 	}
+	local swatch = { n = G.UIT.C, config = { align = 'cm', maxw = 2.6 }, nodes = {
+		{ n = G.UIT.O, config = { object = DynaText({
+			string = { { ref_table = hud, ref_value = 'text' } },
+			colours = { G.C.WHITE },
+			scale = 0.35,
+			shadow = true,
+			pop_in_rate = 9999999,
+			silent = true,
+		}) } },
+	} }
+	local def = location_component(icon, label_nodes, swatch, 2.8)
+	def.config.id = HUD_MARKER_ID
+	def.config.func = 'spdrn_install_location_hover'
+	return def
 end
 
 local function show_enemy_location()
@@ -208,7 +235,7 @@ function hud._tick()
 	hud._shown = true
 end
 
--- Exposed for the roster/end-screen and tests; not needed by hud._tick itself.
+-- Exposed for the end-screen and tests; not needed by hud._tick itself.
 hud._remove_box = function()
 	if hud._popup then
 		pcall(function() hud._popup:remove() end)

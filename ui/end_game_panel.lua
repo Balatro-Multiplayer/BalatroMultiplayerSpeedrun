@@ -81,8 +81,7 @@ end
 -- Clears and repopulates the shared jokers CardArea from the selected
 -- player's captured snapshot (objects/matchmaking/progress.lua's
 -- capture_local_jokers) -- plain key/edition/eternal/perishable data, not a
--- CardArea:save() round-trip, same technique ui/roster_screen.lua's own
--- build_joker_area already uses.
+-- CardArea:save() round-trip.
 local function rebuild_end_game_jokers(player_id, player_name)
 	local area = SPDRN.end_game_jokers
 	if not area then

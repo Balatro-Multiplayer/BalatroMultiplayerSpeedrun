@@ -93,9 +93,9 @@ function SPDRN.report_match_result(winner_id)
 	end
 
 	local progress = SPDRN.finalize_match_progress()
-	-- §16.10/17: jokers/deck_back/deck ride along for the end-of-run roster and
-	-- win/lose screen's per-player jokers+deck viewer only -- build_placements
-	-- (above) deliberately never reads them, so this stays a pure display
+	-- §16.10/17: jokers/deck_back/deck ride along for the win/lose screen's
+	-- per-player jokers+deck viewer only -- build_placements (above)
+	-- deliberately never reads them, so this stays a pure display
 	-- concern with no effect on ranking/server reporting.
 	SPDRN._collected_results[lobby.player_id] = {
 		furthest_ante = progress.furthest_ante,

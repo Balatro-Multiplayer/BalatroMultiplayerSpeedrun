@@ -7,10 +7,10 @@
 
 -- §16.10: a lightweight snapshot of the local player's final jokers + deck
 -- back, captured once at finalize time alongside furthest ante/round -- shown
--- on every player's end-of-run roster (ui/roster_screen.lua), not just their
--- own stats. Plain data (not card:save()/CardArea:save(), which round-trip
--- engine-internal state this display has no use for) so it rides cheaply on
--- the existing spdrn_player_result broadcast.
+-- on the win/lose screen's jokers area for every player (ui/end_game_panel.lua),
+-- not just the local one. Plain data (not card:save()/CardArea:save(), which
+-- round-trip engine-internal state this display has no use for) so it rides
+-- cheaply on the existing spdrn_player_result broadcast.
 local function capture_local_jokers()
 	local jokers = {}
 	if G.jokers and G.jokers.cards then

@@ -58,6 +58,10 @@ end
 --   practice    -> Play Again + Leave
 --   matchmaking -> (loser) Continue in Singleplayer + Leave; (winner) Leave only
 --   private     -> Continue in Singleplayer + Return to Lobby + Leave
+-- §16.10/17: no separate "Roster" button anymore -- the win/lose body's own
+-- jokers area + player selector + View Deck (SPDRN.build_end_game_extras,
+-- ui/end_game_panel.lua) already covers every player, so the old table of
+-- ante/round/time (ui/roster_screen.lua) was purely redundant.
 function SPDRN.end_screen_buttons(is_winner)
 	local kind = SPDRN.get_lobby_kind()
 	local specs = {}
@@ -65,13 +69,11 @@ function SPDRN.end_screen_buttons(is_winner)
 		specs[#specs + 1] = { button = 'spdrn_play_again', label = 'Practice Again', colour = G.C.BLUE }
 		specs[#specs + 1] = { button = 'spdrn_leave_from_game', label = 'Back to Main Menu', colour = G.C.RED }
 	elseif SPDRN.is_matchmaking(kind) then
-		specs[#specs + 1] = { button = 'spdrn_open_roster', label = 'Roster', colour = G.C.PURPLE }
 		if not is_winner then
 			specs[#specs + 1] = { button = 'spdrn_continue_sp', label = 'Continue in Singleplayer', colour = G.C.BLUE }
 		end
 		specs[#specs + 1] = { button = 'spdrn_leave_from_game', label = 'Leave Lobby', colour = G.C.RED }
 	else
-		specs[#specs + 1] = { button = 'spdrn_open_roster', label = 'Roster', colour = G.C.PURPLE }
 		specs[#specs + 1] = { button = 'spdrn_continue_sp', label = 'Continue in Singleplayer', colour = G.C.BLUE }
 		specs[#specs + 1] = { button = 'spdrn_return_to_lobby', label = 'Return to Lobby', colour = G.C.GREEN }
 		specs[#specs + 1] = { button = 'spdrn_leave_from_game', label = 'Leave Lobby', colour = G.C.RED }

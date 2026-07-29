@@ -19,13 +19,6 @@ MPAPI.ActionType({
 			deck = params.deck,
 		}
 
-		-- §16.10: the roster screen (if currently open) reacts live as each
-		-- player's own result arrives, same idea as SPDRN.lobby.refresh_mm_status
-		-- for the ban-pick draft view.
-		if SPDRN.refresh_roster then
-			SPDRN.refresh_roster()
-		end
-
 		-- §16.7: keyed on _match_result_pending (this client has itself already
 		-- finalized/broadcast), not on _current_winner_id's truthiness -- a
 		-- duration-cap cutoff finalizes with winner_id = nil, which must still
