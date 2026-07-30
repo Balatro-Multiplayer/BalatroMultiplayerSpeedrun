@@ -95,9 +95,17 @@ end
 -- instead of a blind name (reproduced live: a losing player sitting on the
 -- very first blind-select screen when an opponent won showed "Defeated By
 -- ERROR"). Only show_run_lost_screen has that "died to a blind" context.
-function SPDRN.lose_body(buttons, defeated_by_blind)
+-- `include_panel` (default true) gates the jokers-area/View-Deck/player-selector panel
+-- (SPDRN.build_end_game_extras) -- omitted for the run-lost-to-a-blind and forfeit screens,
+-- which have nothing worth reviewing yet (no other player's results have arrived, and a
+-- forfeiting player never even finished a joker roster), unlike the terminal "an opponent
+-- won" screen where it's the whole point.
+function SPDRN.lose_body(buttons, defeated_by_blind, include_panel)
+	if include_panel == nil then
+		include_panel = true
+	end
 	return MPAPI.end_screen_body({
-		player_panel = SPDRN.build_end_game_extras(),
+		player_panel = include_panel and SPDRN.build_end_game_extras() or {},
 		defeated_by = defeated_by_blind,
 		buttons = buttons or SPDRN.end_screen_buttons(false),
 	})
@@ -124,8 +132,10 @@ end
 -- spent deciding on this screen). Every terminal screen -- win, opponent-won, forfeit -- leaves
 -- it unset so the timer freezes at the match's final time. It doubles as the "did we actually
 -- die to a blind" signal for lose_body's defeated_by row, above -- true in exactly the same
--- one case.
-SPDRN.show_lose_screen = function(buttons, keep_timer_running)
+-- one case. `include_panel`/`title_key` are threaded straight through to lose_body/
+-- end_screen_show -- see show_run_lost_screen and show_forfeit_screen below for the two
+-- screens that override them.
+SPDRN.show_lose_screen = function(buttons, keep_timer_running, include_panel, title_key)
 	if SPDRN.timer and not keep_timer_running then
 		SPDRN.timer.stop()
 	end
@@ -133,19 +143,30 @@ SPDRN.show_lose_screen = function(buttons, keep_timer_running)
 		won = false,
 		no_esc = true,
 		bg_colour = lose_bg_colour(),
+		title_key = title_key,
 		sounds = { { 'negative', 0.5, 0.7 }, { 'whoosh2', 0.9, 0.7 } },
 		room_jiggle = 3,
 		quip = { prefix = 'lq_', max = 10 },
 		body = function()
-			return SPDRN.lose_body(buttons, keep_timer_running)
+			return SPDRN.lose_body(buttons, keep_timer_running, include_panel)
 		end,
 	})
 end
 
--- Shown when the player loses their run to a blind (as opposed to an opponent
--- winning): same presentation as the lose screen but offering Restart Run / Forfeit.
+-- Shown when the player loses their run to a blind (as opposed to an opponent winning):
+-- same presentation as the lose screen but offering Restart Run / Forfeit, "OOPS!" instead
+-- of "GAME OVER" (it's a restartable mid-run setback, not the terminal loss "GAME OVER"
+-- implies), and no player panel -- nothing to review yet this early.
 SPDRN.show_run_lost_screen = function()
-	SPDRN.show_lose_screen(SPDRN.run_lost_buttons(), true)
+	SPDRN.show_lose_screen(SPDRN.run_lost_buttons(), true, false, 'ph_oops')
+end
+
+-- Shown to a player who forfeits (practice's solo shortcut in run_options.lua, or a real
+-- lobby's spdrn_forfeit action on_receive) -- terminal like the "an opponent won" lose
+-- screen, but with no player panel: forfeiting player results haven't necessarily arrived
+-- yet, and (in practice) there's nothing to review anyway.
+SPDRN.show_forfeit_screen = function()
+	SPDRN.show_lose_screen(nil, false, false)
 end
 
 -- Balatro has no single "you lost" callback, so we watch the game-over state off

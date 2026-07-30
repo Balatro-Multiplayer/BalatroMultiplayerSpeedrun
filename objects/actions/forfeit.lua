@@ -10,7 +10,7 @@ MPAPI.ActionType({
 			G.E_MANAGER:add_event(Event({
 				func = function()
 					if G.STAGE == G.STAGES.RUN then
-						SPDRN.show_lose_screen()
+						SPDRN.show_forfeit_screen()
 					end
 					return true
 				end,

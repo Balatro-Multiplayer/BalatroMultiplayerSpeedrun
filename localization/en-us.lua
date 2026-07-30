@@ -14,6 +14,11 @@ return {
 			k_seed_vote = 'Vote to change seed',
 			k_times_up = "Time's Up",
 			k_duration_cap_cap = 'Duration Cap',
+			-- Title for the run-lost-to-a-blind screen (SPDRN.show_run_lost_screen), in place
+			-- of the base game's own 'ph_game_over' -- same DynaText styling (MPAPI.end_screen_uibox
+			-- title_key), just SPDRN's own wording since that screen is a restartable mid-run
+			-- setback, not the terminal loss the base "GAME OVER" text implies.
+			ph_oops = 'OOPS!',
 		},
 	},
 }

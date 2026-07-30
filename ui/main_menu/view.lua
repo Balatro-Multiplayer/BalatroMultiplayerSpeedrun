@@ -49,6 +49,9 @@ SPDRN.build_pre_lobby_ui = function()
 							b.create_lobby.node,
 						},
 					},
+					{ n = G.UIT.R, config = { align = 'cm', padding = 0.05 }, nodes = {
+						{ n = G.UIT.T, config = { text = 'Made Possible by Artifex Digital', scale = 0.34, colour = G.C.UI.TEXT_INACTIVE } },
+					} },
 				},
 			},
 		},

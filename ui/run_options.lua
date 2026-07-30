@@ -15,7 +15,7 @@ G.FUNCS.spdrn_forfeit = function()
 	if SPDRN.get_lobby_kind() == SPDRN.LobbyKind.PRACTICE then
 		G.E_MANAGER:add_event(Event({
 			func = function()
-				SPDRN.show_lose_screen()
+				SPDRN.show_forfeit_screen()
 				return true
 			end,
 		}))
