@@ -55,9 +55,13 @@ MPAPI.ActionType({
 				-- ORDER is the intended result (e.g. All Deck's play order). Every other
 				-- gamemode's ban_pick has keep > 0, so this is a no-op for them.
 				local run_order = (gm_def.ban_pick.keep == 0) and ban_order or survivors
+				-- Reuse the gamemode's own ban_pick.decorate_tile here too (stake sticker,
+				-- challenge-name label, ...) -- without it the countdown screen's deck-back
+				-- tiles show correctly (once resolved past raw {key=...} survivor items,
+				-- see countdown.lua) but silently drop that extra context.
 				SPDRN.show_countdown(function()
 					proceed(run_order)
-				end, run_order)
+				end, run_order, gm_def.ban_pick.decorate_tile)
 			end)
 		else
 			-- Private + matchmaking without a draft: synced 5s countdown, single deck.

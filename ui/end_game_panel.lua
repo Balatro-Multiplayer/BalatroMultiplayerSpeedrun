@@ -78,44 +78,17 @@ G.FUNCS.spdrn_view_selected_deck = function()
 	})
 end
 
--- Clears and repopulates the shared jokers CardArea from the selected
--- player's captured snapshot (objects/matchmaking/progress.lua's
--- capture_local_jokers) -- plain key/edition/eternal/perishable data, not a
--- CardArea:save() round-trip.
+-- Repopulates the shared jokers CardArea from the selected player's
+-- captured snapshot (objects/matchmaking/progress.lua's capture_local_jokers)
+-- via MPAPI.rebuild_jokers_area (BalatroMultiplayerAPI/api/end_screen.lua) --
+-- the same plain key/edition/eternal/perishable shape PvP's own
+-- PVP._collected_results uses, so that part is shared rather than
+-- reimplemented per mod.
 local function rebuild_end_game_jokers(player_id, player_name)
-	local area = SPDRN.end_game_jokers
-	if not area then
-		return
-	end
-	if area.cards then
-		for _, card in ipairs(area.cards) do
-			-- Avoid Jokers being removed from activating removal abilities
-			-- (e.g. Negatives) during the swap, same guard PvP's
-			-- toggle_players_jokers uses.
-			card.added_to_deck = false
-		end
-		remove_all(area.cards)
-	end
-	area.cards = {}
-
 	local result = player_id and SPDRN._collected_results and SPDRN._collected_results[player_id]
-	if result and result.jokers then
-		for _, j in ipairs(result.jokers) do
-			local center = G.P_CENTERS[j.key]
-			if center then
-				local card = Card(area.T.x, area.T.y, G.CARD_W, G.CARD_H, nil, center, { bypass_discovery_center = true })
-				if j.edition then
-					card:set_edition(j.edition, true, true)
-				end
-				card.ability.eternal = j.eternal or false
-				card.ability.perishable = j.perishable or false
-				area:emplace(card)
-			end
-		end
-		SPDRN.end_game_jokers_text = (player_name or 'Player') .. "'s Jokers"
-	else
-		SPDRN.end_game_jokers_text = (player_name or 'Player') .. ' -- still playing...'
-	end
+	MPAPI.rebuild_jokers_area(SPDRN.end_game_jokers, result and result.jokers)
+	SPDRN.end_game_jokers_text = (result and result.jokers) and ((player_name or 'Player') .. "'s Jokers")
+		or ((player_name or 'Player') .. ' -- still playing...')
 end
 
 G.FUNCS.spdrn_end_screen_select_player = function(e)
@@ -135,9 +108,11 @@ end
 
 -- The shared body content both SPDRN.win_body and SPDRN.lose_body embed:
 -- jokers area + a selector rotating through every lobby member + a View Deck
--- button for whichever player is currently selected. Rebuilt fresh each time
--- the end screen opens (SPDRN.end_game_jokers itself is recreated so a stale
--- CardArea from a previous match never lingers).
+-- button for whichever player is currently selected -- built via the shared
+-- MPAPI.end_screen_player_panel (BalatroMultiplayerAPI/api/end_screen.lua),
+-- which PvP's own PVP.UI.build_end_game_extras (ui/game/game_end.lua) also
+-- calls. Rebuilt fresh each time the end screen opens (SPDRN.end_game_jokers
+-- itself is recreated so a stale CardArea from a previous match never lingers).
 function SPDRN.build_end_game_extras()
 	SPDRN.end_game_jokers = CardArea(
 		0,
@@ -148,51 +123,19 @@ function SPDRN.build_end_game_extras()
 	)
 
 	local lobby = MPAPI.get_current_lobby()
-	local players = (lobby and lobby:get_players()) or {}
-	local options = {}
-	local current_option = 1
-	for i, p in ipairs(players) do
-		options[i] = p.displayName or p.id
-		if p.id == (lobby and lobby.player_id) then
-			current_option = i
-		end
-	end
-	if #options == 0 then
-		options = { '--' }
-	end
+	local players, options, current_option = MPAPI.end_screen_default_selection(lobby)
 
 	local selected = players[current_option]
 	SPDRN._end_screen_selected_player_id = selected and selected.id
 	SPDRN._end_screen_selected_player_name = selected and (selected.displayName or selected.id)
 	rebuild_end_game_jokers(SPDRN._end_screen_selected_player_id, SPDRN._end_screen_selected_player_name)
 
-	return {
-		{ n = G.UIT.R, config = { align = 'cm', padding = 0.08 }, nodes = {
-			{ n = G.UIT.T, config = { ref_table = SPDRN, ref_value = 'end_game_jokers_text', scale = 0.7, maxw = 5, shadow = true } },
-		} },
-		{ n = G.UIT.R, config = { align = 'cm', padding = 0.08 }, nodes = {
-			{ n = G.UIT.O, config = { object = SPDRN.end_game_jokers } },
-		} },
-		{ n = G.UIT.R, config = { align = 'cm', padding = 0.1 }, nodes = {
-			{ n = G.UIT.C, config = { align = 'cm', minw = 3 }, nodes = {
-				create_option_cycle({
-					options = options,
-					current_option = current_option,
-					opt_callback = 'spdrn_end_screen_select_player',
-					w = 3,
-					cycle_shoulders = true,
-					no_pips = true,
-					focus_args = { snap_to = true, nav = 'wide' },
-				}),
-			} },
-			{ n = G.UIT.C, config = { minw = 0.15 } },
-			{
-				n = G.UIT.C,
-				config = { button = 'spdrn_view_selected_deck', align = 'cm', padding = 0.12, colour = G.C.BLUE, emboss = 0.05, minh = 0.7, minw = 2, maxw = 2, r = 0.1, shadow = true, hover = true },
-				nodes = {
-					{ n = G.UIT.T, config = { text = 'View Deck', colour = G.C.UI.TEXT_LIGHT, scale = 0.5, col = true } },
-				},
-			},
-		} },
-	}
+	return MPAPI.end_screen_player_panel({
+		jokers_text_ref = { table = SPDRN, key = 'end_game_jokers_text' },
+		jokers_area = SPDRN.end_game_jokers,
+		options = options,
+		current_option = current_option,
+		opt_callback = 'spdrn_end_screen_select_player',
+		view_deck_button = MPAPI.end_screen_view_deck_button('spdrn_view_selected_deck', 'View Deck'),
+	})
 end

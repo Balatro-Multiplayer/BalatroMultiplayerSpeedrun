@@ -49,9 +49,18 @@ function timer._tick()
 	end
 
 	if not timer._frozen then
-		local started = SPDRN._run_started_at
-		local elapsed = started and (love.timer.getTime() - started) or 0
-		timer.text = timer.format(elapsed)
+		-- Seed Scout's scouting phase counts down instead of up (see
+		-- objects/gamemodes/seed_scout.lua's _seed_scout_remaining_seconds) --
+		-- nil for every other gamemode/phase, which falls back to the normal
+		-- elapsed-time display below.
+		local remaining = SPDRN._seed_scout_remaining_seconds and SPDRN._seed_scout_remaining_seconds()
+		if remaining then
+			timer.text = timer.format(remaining)
+		else
+			local started = SPDRN._run_started_at
+			local elapsed = started and (love.timer.getTime() - started) or 0
+			timer.text = timer.format(elapsed)
+		end
 	end
 
 	-- A multi-run restart's G:delete_run removes our box but leaves the stale reference; drop it

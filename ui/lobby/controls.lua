@@ -121,6 +121,19 @@ end
 function SPDRN.lobby.refresh_mm_status()
 	if _mm_status_el then
 		_mm_status_el:update()
+	elseif MPAPI.BanPick.is_active() then
+		-- A private lobby's initial view is build_private_controls(), which has no
+		-- _mm_status_el to update -- pressing Start kicks off MPAPI.BanPick.start
+		-- (start_game.lua) and its on_refresh calls straight into here, but with
+		-- nothing to update this was a silent no-op: the draft was fully active and
+		-- synced on both clients, just never mounted, so the lobby stayed showing
+		-- the stale Start/Options screen until some unrelated metadata_changed event
+		-- (e.g. opening lobby options and touching any setting) forced a full view
+		-- rebuild and finally noticed MPAPI.BanPick.is_active() (see build_controls
+		-- below). Force that same rebuild here on the very first refresh instead of
+		-- waiting for one to happen by accident -- it creates _mm_status_el, and every
+		-- refresh after this one hits the cheap :update() branch above.
+		MPAPI.refresh_current_view()
 	end
 end
 

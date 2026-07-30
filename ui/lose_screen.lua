@@ -82,8 +82,10 @@ function SPDRN.end_screen_buttons(is_winner)
 	return MPAPI.end_screen_buttons(specs)
 end
 
--- The speedrun-specific body of the lose screen, rendered inside the shared
--- MPAPI.end_screen shell. `defeated_by_blind` gates the base game's
+-- The speedrun lose screen's body: the exact same shared MPAPI.end_screen_body
+-- PvP's own PVP.UI.end_game_body (ui/game/game_end.lua) and SPDRN's own
+-- win_body call, with SPDRN's lose-specific button set and the
+-- `defeated_by_blind` flag. `defeated_by_blind` gates the base game's
 -- "Defeated By" row (the blind that beat you): it only makes sense when the
 -- run actually ended by dying to a blind mid-run. The base-game renderer
 -- reads G.GAME.blind.config.blind unconditionally, which for every OTHER
@@ -94,68 +96,11 @@ end
 -- very first blind-select screen when an opponent won showed "Defeated By
 -- ERROR"). Only show_run_lost_screen has that "died to a blind" context.
 function SPDRN.lose_body(buttons, defeated_by_blind)
-	local right_col = {
-		create_UIBox_round_scores_row('furthest_ante', G.C.FILTER),
-		create_UIBox_round_scores_row('furthest_round', G.C.FILTER),
-	}
-	if defeated_by_blind then
-		right_col[#right_col + 1] = create_UIBox_round_scores_row('defeated_by')
-	end
-	right_col[#right_col + 1] = { n = G.UIT.R, config = { align = 'cm', minh = 0.2, minw = 0.1 }, nodes = {} }
-	for _, b in ipairs(buttons or SPDRN.end_screen_buttons(false)) do
-		right_col[#right_col + 1] = b
-	end
-
-	local panel_nodes = {}
-	for _, row in ipairs(SPDRN.build_end_game_extras()) do
-		panel_nodes[#panel_nodes + 1] = row
-	end
-	panel_nodes[#panel_nodes + 1] = { n = G.UIT.R, config = { align = 'cm', padding = 0.08 }, nodes = {
-		create_UIBox_round_scores_row('hand'),
-		create_UIBox_round_scores_row('poker_hand'),
-	} }
-	panel_nodes[#panel_nodes + 1] = {
-		n = G.UIT.R,
-		config = { align = 'cm' },
-		nodes = {
-			{
-				n = G.UIT.C,
-				config = { align = 'cm', padding = 0.08 },
-				nodes = {
-					create_UIBox_round_scores_row('cards_played', G.C.BLUE),
-					create_UIBox_round_scores_row('cards_discarded', G.C.RED),
-					create_UIBox_round_scores_row('cards_purchased', G.C.MONEY),
-					create_UIBox_round_scores_row('times_rerolled', G.C.GREEN),
-					create_UIBox_round_scores_row('new_collection', G.C.WHITE),
-					create_UIBox_round_scores_row('seed', G.C.WHITE),
-					UIBox_button({ button = 'copy_seed', label = { localize('b_copy') }, colour = G.C.BLUE, scale = 0.3, minw = 2.3, minh = 0.4, focus_args = { nav = 'wide' } }),
-				},
-			},
-			{
-				n = G.UIT.C,
-				config = { align = 'tr', padding = 0.08 },
-				nodes = right_col,
-			},
-		},
-	}
-
-	return {
-		n = G.UIT.R,
-		config = { align = 'cm', padding = 0.15 },
-		nodes = {
-			{
-				n = G.UIT.C,
-				config = { align = 'cm' },
-				nodes = {
-					{
-						n = G.UIT.R,
-						config = { align = 'cm', padding = 0.05, colour = G.C.BLACK, emboss = 0.05, r = 0.1 },
-						nodes = panel_nodes,
-					},
-				},
-			},
-		},
-	}
+	return MPAPI.end_screen_body({
+		player_panel = SPDRN.build_end_game_extras(),
+		defeated_by = defeated_by_blind,
+		buttons = buttons or SPDRN.end_screen_buttons(false),
+	})
 end
 
 -- Loss uses RED at/under the win-ante, BLUE beyond it (a "you gave up a winnable run").

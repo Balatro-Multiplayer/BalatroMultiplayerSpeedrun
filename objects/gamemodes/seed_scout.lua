@@ -1,7 +1,7 @@
 -- How long the scouting phase lasts (seconds) before the real timed race begins. Kept as a
 -- module-level var (not a magic number in _check_seed_scout_timer) so it's easy to temporarily
 -- shorten for local iteration/testing without hunting through the file.
-SPDRN.SEED_SCOUT_DURATION = 300
+SPDRN.SEED_SCOUT_DURATION = 60
 
 -- §16.4: a combined deck+stake draft, the same shape PvP itself uses for its own
 -- matches (pvp_api/actions/run_lifecycle.lua's BAN_PICK) -- pool items are
@@ -53,10 +53,10 @@ MPAPI.GameMode({
 	-- §16.7: 1 run -- the race phase only. SPDRN._run_started_at (what the
 	-- duration-cap poll measures elapsed time against) is reset when the scout
 	-- phase transitions to the race phase (see _check_seed_scout_timer below),
-	-- so the 5-minute scouting window is already excluded automatically.
+	-- so the scouting window is already excluded automatically.
 	duration_cap_seconds = SPDRN.DURATION_CAP_PER_RUN_SECONDS,
 	init = function(self)
-		-- 'scout' (5-minute $500 free-play window on the match's seed/deck/stake, thrown away)
+		-- 'scout' (SEED_SCOUT_DURATION-second $500 free-play window on the match's seed/deck/stake, thrown away)
 		-- -> 'race' (the real timed run, regular money, same seed/deck/stake).
 		self._phase = 'scout'
 		self._scout_locked = false
@@ -69,7 +69,7 @@ MPAPI.GameMode({
 		self._forfeited = {}
 	end,
 	-- Win detection only runs once the real race has begun -- a freak fast scouting-phase
-	-- clear (unlikely in 5 minutes, but not impossible) must never end the match early.
+	-- clear (unlikely within SEED_SCOUT_DURATION, but not impossible) must never end the match early.
 	calculate = function(self, context)
 		if self._phase ~= 'race' then
 			return
@@ -200,4 +200,26 @@ function SPDRN._check_seed_scout_timer()
 		SPDRN.timer.start()
 	end
 	SPDRN.request_run_transition(instance, instance._scout_deck, instance._scout_seed)
+end
+
+-- Read by ui/timer/lifecycle.lua's timer._tick: while a Seed Scout match's
+-- scouting phase is still running, the shared race clock counts DOWN the
+-- remaining scouting time instead of counting up an elapsed time -- there's
+-- no meaningful "final time" to accumulate during a phase whose whole point
+-- is to throw the run away, so a countdown to the phase's own end is more
+-- useful than an elapsed counter. Returns nil outside Seed Scout's scout
+-- phase, in which case the timer falls back to its normal elapsed display.
+-- Mirrors _check_seed_scout_timer's own lobby/instance/phase checks above.
+function SPDRN._seed_scout_remaining_seconds()
+	local lobby = MPAPI.get_current_lobby()
+	local meta = lobby and lobby:get_metadata()
+	if not (meta and meta.gamemode == SPDRN.Gamemode.SEED_SCOUT) then
+		return nil
+	end
+	local instance = lobby:get_gamemode_instance()
+	if not (instance and instance._phase == 'scout' and instance._scout_started_at) then
+		return nil
+	end
+	local elapsed = love.timer.getTime() - instance._scout_started_at
+	return math.max(0, SPDRN.SEED_SCOUT_DURATION - elapsed)
 end
