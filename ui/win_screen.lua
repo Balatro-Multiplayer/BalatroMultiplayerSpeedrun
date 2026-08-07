@@ -4,8 +4,10 @@
 -- opponent-comparison row (it's a race, not a duel), and this is a win, not
 -- a loss to a blind.
 function SPDRN.win_body()
+	local player_panel = SPDRN.build_end_game_extras()
 	return MPAPI.end_screen_body({
-		player_panel = SPDRN.build_end_game_extras(),
+		player_panel = player_panel,
+		stat_rows = SPDRN.build_end_game_stat_rows(SPDRN._end_screen_selected_player_id),
 		buttons = SPDRN.end_screen_buttons(true),
 	})
 end

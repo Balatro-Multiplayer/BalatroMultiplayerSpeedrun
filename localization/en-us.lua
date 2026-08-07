@@ -19,6 +19,13 @@ return {
 			-- title_key), just SPDRN's own wording since that screen is a restartable mid-run
 			-- setback, not the terminal loss the base "GAME OVER" text implies.
 			ph_oops = 'OOPS!',
+			-- §end-screen stats: labels for the 4 match-wide stat rows
+			-- (ui/end_game_panel.lua's create_end_game_stat_row) that replace
+			-- the base game's 6 vanilla end-screen stats on SPDRN's own screens.
+			k_stat_completion_time = 'Completion Time',
+			k_stat_best_run_time = 'Best Run Time',
+			k_stat_times_skipped = 'Times Skipped',
+			k_stat_best_hand = 'Best Hand',
 		},
 	},
 }

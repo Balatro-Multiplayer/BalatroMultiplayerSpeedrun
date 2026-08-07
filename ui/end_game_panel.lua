@@ -68,12 +68,30 @@ G.FUNCS.spdrn_view_selected_deck = function()
 	local player_id = SPDRN._end_screen_selected_player_id
 	local result = player_id and SPDRN._collected_results and SPDRN._collected_results[player_id]
 	SPDRN._end_screen_deck_cards = SPDRN.decode_deck_string(result and result.deck)
+	-- view_deck() returns a G.UIT.ROOT node, not a G.UIT.R row -- splicing it directly
+	-- into `contents` (a sibling of the title row) breaks create_UIBox_generic_options's
+	-- width computation used for centering (engine/ui.lua's calculate_xywh only stacks
+	-- G.UIT.R children vertically; anything else, including ROOT, is added to the WIDTH
+	-- accumulator instead), which visibly shifted the deck view off-center. Wrapping it in
+	-- its own child UIBox behind an O node -- exactly how the base game's own view_deck()
+	-- hosts its content internally, and how create_tabs hosts each tab -- makes it a
+	-- single fixed-width leaf from the parent row's perspective.
+	--
+	-- No explicit back_func: the default (exit_overlay_menu) already returns to the SPDRN
+	-- end screen via MPAPI's restorable-overlay mechanism -- see
+	-- BalatroMultiplayerAPI/api/end_screen.lua's MPAPI.end_screen_show /
+	-- G.FUNCS.exit_overlay_menu.
 	G.FUNCS.overlay_menu({
 		definition = create_UIBox_generic_options({ contents = {
 			{ n = G.UIT.R, config = { align = 'cm', padding = 0.1 }, nodes = {
 				{ n = G.UIT.T, config = { text = (SPDRN._end_screen_selected_player_name or 'Player') .. "'s Deck", scale = 0.5, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
 			} },
-			G.UIDEF.view_selected_player_deck(),
+			{ n = G.UIT.R, config = { align = 'cm' }, nodes = {
+				{ n = G.UIT.O, config = { object = UIBox{
+					definition = G.UIDEF.view_selected_player_deck(),
+					config = { offset = { x = 0, y = 0 } },
+				} } },
+			} },
 		} }),
 	})
 end
@@ -91,6 +109,88 @@ local function rebuild_end_game_jokers(player_id, player_name)
 		or ((player_name or 'Player') .. ' -- still playing...')
 end
 
+-- §end-screen stats: the 4 match-wide stat rows' reactive text (a plain table
+-- read via ref_table/ref_value, same as end_game_jokers_text above), rebuilt
+-- alongside the jokers area whenever the end-screen player selector changes.
+SPDRN.end_game_stats_text = SPDRN.end_game_stats_text or {}
+
+local function format_time_ms(ms)
+	if not ms then
+		return '--'
+	end
+	return SPDRN.timer.format(ms / 1000)
+end
+
+-- `player_id` prefers a finalized/broadcast SPDRN._collected_results entry
+-- (works for any player, once their match has ended); falls back to a LIVE
+-- read of the local player's own SPDRN._progress when nothing's been
+-- broadcast yet (the OOPS run-lost screen, or a forfeit screen shown before
+-- report_match_result runs) -- that fallback only ever applies to the local
+-- player, since only their own in-progress state is available to read.
+local function rebuild_end_game_stats(player_id)
+	local lobby = MPAPI.get_current_lobby()
+	local result = player_id and SPDRN._collected_results and SPDRN._collected_results[player_id]
+	local text = SPDRN.end_game_stats_text
+
+	if result then
+		text.completion_time = format_time_ms(result.match_completion_ms)
+		text.best_run_time = format_time_ms(result.best_run_time_ms)
+		text.times_skipped = tostring(result.times_skipped or 0)
+		text.best_hand = result.best_hand_amt and number_format(result.best_hand_amt) or '--'
+	elseif player_id and lobby and player_id == lobby.player_id and SPDRN._progress then
+		local p = SPDRN._progress
+		local live_completion_ms = (love.timer.getTime() - (SPDRN._run_started_at or love.timer.getTime())) * 1000
+		local live_hand_amt = G.GAME and G.GAME.round_scores and G.GAME.round_scores.hand and G.GAME.round_scores.hand.amt
+		local live_best_hand = math.max(p.best_hand_amt or 0, live_hand_amt or 0)
+		text.completion_time = format_time_ms(live_completion_ms)
+		text.best_run_time = format_time_ms(p.best_run_time_ms)
+		text.times_skipped = tostring(p.times_skipped or 0)
+		text.best_hand = live_best_hand > 0 and number_format(live_best_hand) or '--'
+	else
+		text.completion_time = '--'
+		text.best_run_time = '--'
+		text.times_skipped = '--'
+		text.best_hand = '--'
+	end
+end
+
+-- Full-width row matching the base game's own hand/poker_hand row layout
+-- (create_UIBox_round_scores_row, label_w = score_w = 3.5), but reading its
+-- value from SPDRN.end_game_stats_text via ref_table/ref_value instead of a
+-- fixed DynaText string, so it updates live when the player selector changes.
+function SPDRN.create_end_game_stat_row(label, ref_value, colour)
+	return {
+		n = G.UIT.R,
+		config = { align = 'cm', padding = 0.05, r = 0.1, colour = darken(G.C.JOKER_GREY, 0.1), emboss = 0.05 },
+		nodes = {
+			{ n = G.UIT.C, config = { align = 'cm', padding = 0.02, minw = 3.5, maxw = 3.5 }, nodes = {
+				{ n = G.UIT.T, config = { text = label, scale = 0.5, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+			} },
+			{ n = G.UIT.C, config = { align = 'cr' }, nodes = {
+				{ n = G.UIT.C, config = { align = 'cm', minh = 0.5, r = 0.1, minw = 3.5, colour = G.C.BLACK, emboss = 0.05 }, nodes = {
+					{ n = G.UIT.C, config = { align = 'cm', padding = 0.05, r = 0.1, minw = 3.5 }, nodes = {
+						{ n = G.UIT.T, config = { ref_table = SPDRN.end_game_stats_text, ref_value = ref_value, scale = 0.45, colour = colour or G.C.FILTER, shadow = true } },
+					} },
+				} },
+			} },
+		},
+	}
+end
+
+-- The 4 rows SPDRN.win_body/lose_body pass as MPAPI.end_screen_body's
+-- stat_rows override, in place of the base game's 6 vanilla stats. `player_id`
+-- is the selected player when a panel/selector exists, or the local player
+-- directly on panel-less screens (OOPS, forfeit) -- see rebuild_end_game_stats.
+function SPDRN.build_end_game_stat_rows(player_id)
+	rebuild_end_game_stats(player_id)
+	return {
+		SPDRN.create_end_game_stat_row(localize('k_stat_completion_time'), 'completion_time', G.C.FILTER),
+		SPDRN.create_end_game_stat_row(localize('k_stat_best_run_time'), 'best_run_time', G.C.FILTER),
+		SPDRN.create_end_game_stat_row(localize('k_stat_times_skipped'), 'times_skipped', G.C.RED),
+		SPDRN.create_end_game_stat_row(localize('k_stat_best_hand'), 'best_hand', G.C.RED),
+	}
+end
+
 G.FUNCS.spdrn_end_screen_select_player = function(e)
 	if not e then
 		return
@@ -104,6 +204,7 @@ G.FUNCS.spdrn_end_screen_select_player = function(e)
 	SPDRN._end_screen_selected_player_id = p.id
 	SPDRN._end_screen_selected_player_name = p.displayName or p.id
 	rebuild_end_game_jokers(p.id, SPDRN._end_screen_selected_player_name)
+	rebuild_end_game_stats(p.id)
 end
 
 -- The shared body content both SPDRN.win_body and SPDRN.lose_body embed:
@@ -124,6 +225,18 @@ function SPDRN.build_end_game_extras()
 
 	local lobby = MPAPI.get_current_lobby()
 	local players, options, current_option = MPAPI.end_screen_default_selection(lobby)
+
+	-- Preserve a still-valid prior selection across a rebuild (e.g. the pause menu or
+	-- View Deck closing, BalatroMultiplayerAPI/api/end_screen.lua's restorable-overlay
+	-- mechanism) instead of snapping back to the local player every time.
+	if SPDRN._end_screen_selected_player_id then
+		for i, p in ipairs(players) do
+			if p.id == SPDRN._end_screen_selected_player_id then
+				current_option = i
+				break
+			end
+		end
+	end
 
 	local selected = players[current_option]
 	SPDRN._end_screen_selected_player_id = selected and selected.id

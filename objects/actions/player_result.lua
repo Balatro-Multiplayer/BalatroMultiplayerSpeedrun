@@ -17,6 +17,9 @@ MPAPI.ActionType({
 			jokers = params.jokers,
 			deck_back = params.deck_back,
 			deck = params.deck,
+			match_completion_ms = params.match_completion_ms,
+			times_skipped = params.times_skipped,
+			best_hand_amt = params.best_hand_amt,
 		}
 
 		-- §16.7: keyed on _match_result_pending (this client has itself already

@@ -104,9 +104,19 @@ function SPDRN.lose_body(buttons, defeated_by_blind, include_panel)
 	if include_panel == nil then
 		include_panel = true
 	end
+	local player_panel, stat_player_id
+	if include_panel then
+		player_panel = SPDRN.build_end_game_extras()
+		stat_player_id = SPDRN._end_screen_selected_player_id
+	else
+		player_panel = {}
+		local lobby = MPAPI.get_current_lobby()
+		stat_player_id = lobby and lobby.player_id
+	end
 	return MPAPI.end_screen_body({
-		player_panel = include_panel and SPDRN.build_end_game_extras() or {},
+		player_panel = player_panel,
 		defeated_by = defeated_by_blind,
+		stat_rows = SPDRN.build_end_game_stat_rows(stat_player_id),
 		buttons = buttons or SPDRN.end_screen_buttons(false),
 	})
 end

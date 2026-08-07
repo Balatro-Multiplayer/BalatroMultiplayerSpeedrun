@@ -100,7 +100,19 @@ function SPDRN.reset_match_progress()
 		deck_back = nil,
 		deck = nil,
 		finalized = false,
+		-- §end-screen stats: match-wide, cumulative across every run in the
+		-- match -- deliberately NOT reset in reset_current_run_timer, only
+		-- here, so a run restart never loses them.
+		match_completion_ms = nil,
+		times_skipped = 0,
+		best_hand_amt = nil,
 	}
+	-- Cleared (not just left stale) so run_start.lua's _check_pending_run_transition
+	-- can tell "the very first run of this match, nothing to fold in yet" (nil)
+	-- apart from "a later transition, fold in the run that just ended" -- without
+	-- this, a leftover value from a PREVIOUS match could make the first run
+	-- wrongly capture stale G.GAME.round_scores as this match's best hand.
+	SPDRN._current_run_started_at = nil
 	SPDRN._collected_results = {}
 	SPDRN._current_winner_id = nil
 	-- §16.7: whether THIS client has already finalized/broadcast its own result --
@@ -137,6 +149,37 @@ function SPDRN.record_run_completed()
 	end
 end
 
+-- §end-screen stats: called once, the moment this client's own match
+-- involvement ends (it won, or it personally forfeited): increments the
+-- match-wide "times skipped" counter, called from a G.FUNCS.skip_blind hook
+-- (objects/matchmaking/skip_tracking.lua) rather than from anywhere in this
+-- file, since skipping is a base-game button press, not a gamemode event.
+function SPDRN.record_skip()
+	local p = SPDRN._progress
+	if not p or p.finalized then
+		return
+	end
+	p.times_skipped = (p.times_skipped or 0) + 1
+end
+
+-- §end-screen stats: folds the CURRENTLY LIVE run's best hand (if any) into
+-- the match-wide running max, without touching G.GAME. Called from two spots
+-- since a run's round_scores are about to be wiped by the next start_run:
+-- finalize_match_progress (the run that ends the match) and
+-- ui/lobby/run_start.lua's _check_pending_run_transition (every other
+-- transition -- restart, seed change, multi-run progression), right before
+-- it kicks off the next run.
+function SPDRN.capture_best_hand_for_running_run()
+	local p = SPDRN._progress
+	if not p or p.finalized then
+		return
+	end
+	local amt = G.GAME and G.GAME.round_scores and G.GAME.round_scores.hand and G.GAME.round_scores.hand.amt
+	if amt and (not p.best_hand_amt or amt > p.best_hand_amt) then
+		p.best_hand_amt = amt
+	end
+end
+
 -- Called once, the moment this client's own match involvement ends (it won, or
 -- it personally forfeited): snapshots the furthest ante/round actually reached
 -- and how long into the run that happened, then freezes the result so nothing
@@ -160,6 +203,8 @@ function SPDRN.finalize_match_progress()
 		p.jokers = capture_local_jokers()
 		p.deck_back = capture_local_deck_back()
 		p.deck = capture_local_deck()
+		SPDRN.capture_best_hand_for_running_run()
+		p.match_completion_ms = (love.timer.getTime() - (SPDRN._run_started_at or love.timer.getTime())) * 1000
 	end
 	p.finalized = true
 	return p

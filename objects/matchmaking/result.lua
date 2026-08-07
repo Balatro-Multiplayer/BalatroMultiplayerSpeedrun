@@ -105,6 +105,9 @@ function SPDRN.report_match_result(winner_id)
 		jokers = progress.jokers,
 		deck_back = progress.deck_back,
 		deck = progress.deck,
+		match_completion_ms = progress.match_completion_ms,
+		times_skipped = progress.times_skipped,
+		best_hand_amt = progress.best_hand_amt,
 	}
 	lobby:action(MPAPI.ActionTypes['spdrn_player_result']):broadcast({
 		player_id = lobby.player_id,
@@ -115,6 +118,9 @@ function SPDRN.report_match_result(winner_id)
 		jokers = progress.jokers,
 		deck_back = progress.deck_back,
 		deck = progress.deck,
+		match_completion_ms = progress.match_completion_ms,
+		times_skipped = progress.times_skipped,
+		best_hand_amt = progress.best_hand_amt,
 	})
 
 	SPDRN._maybe_report_result(winner_id)

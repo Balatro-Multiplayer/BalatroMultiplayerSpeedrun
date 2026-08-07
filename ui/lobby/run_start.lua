@@ -44,6 +44,17 @@ function SPDRN._check_pending_run_transition()
 		return
 	end
 	SPDRN._pending_run_transition = nil
+	-- §end-screen stats: fold the ending run's best hand into the match-wide
+	-- max before start_run wipes G.GAME.round_scores -- covers every
+	-- transition except the one that ends the match outright (that path
+	-- goes through finalize_match_progress instead, which never reaches here).
+	-- Skipped on the very first run of a match (_current_run_started_at still
+	-- nil, cleared by reset_match_progress): there's no prior run's hand to
+	-- fold in yet, and G.GAME may still hold stale round_scores left over
+	-- from whatever ran before this match started.
+	if SPDRN._current_run_started_at then
+		SPDRN.capture_best_hand_for_running_run()
+	end
 	-- §16.8: every individual run (first and subsequent, within a multi-run
 	-- match) gets its own start timestamp, so record_run_completed measures
 	-- just this run rather than the whole match's elapsed time.
