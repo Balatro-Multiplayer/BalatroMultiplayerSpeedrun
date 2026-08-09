@@ -129,41 +129,46 @@ G.FUNCS.spdrn_lobby_options = function()
 			},
 		}
 
-			-- §16.7: private lobbies opt into the same 15-min-per-run duration cap
-			-- ranked/casual matches always have. Off by default (existing lobbies'
-			-- metadata has no duration_cap_opt_in key at all, which reads as false).
-			local cap_on = meta.duration_cap_opt_in == true
-			contents[#contents + 1] = { n = G.UIT.R, config = { align = 'cm', padding = 0.05 }, nodes = {
-				{ n = G.UIT.T, config = { text = localize('k_duration_cap_cap') or 'Duration Cap', scale = 0.4, colour = G.C.UI.TEXT_LIGHT } },
-			} }
-			contents[#contents + 1] = {
-				n = G.UIT.R,
-				config = { align = 'cm', padding = 0.05 },
-				nodes = {
-					UIBox_button({
-						button = 'spdrn_set_duration_cap_on',
-						label = { 'On' .. (cap_on and ' *' or '') },
-						colour = cap_on and G.C.GREEN or G.C.GREY,
-						minw = 4,
-						minh = 0.6,
-						scale = 0.45,
-					}),
-				},
-			}
-			contents[#contents + 1] = {
-				n = G.UIT.R,
-				config = { align = 'cm', padding = 0.05 },
-				nodes = {
-					UIBox_button({
-						button = 'spdrn_set_duration_cap_off',
-						label = { 'Off' .. (not cap_on and ' *' or '') },
-						colour = (not cap_on) and G.C.GREEN or G.C.GREY,
-						minw = 4,
-						minh = 0.6,
-						scale = 0.45,
-					}),
-				},
-			}
+			-- §16.7: duration cap is a per-gamemode option (MPAPI.GameMode's
+			-- has_duration_cap) -- only show the toggle for a mode that has it at all.
+			-- For a mode that does, private lobbies opt in explicitly (ranked/casual
+			-- always have it on); off by default (existing lobbies' metadata has no
+			-- duration_cap_opt_in key at all, which reads as false).
+			local current_gm_def = current_key and MPAPI.GameModes[current_key]
+			if current_gm_def and current_gm_def.has_duration_cap then
+				local cap_on = meta.duration_cap_opt_in == true
+				contents[#contents + 1] = { n = G.UIT.R, config = { align = 'cm', padding = 0.05 }, nodes = {
+					{ n = G.UIT.T, config = { text = localize('k_duration_cap_cap') or 'Duration Cap', scale = 0.4, colour = G.C.UI.TEXT_LIGHT } },
+				} }
+				contents[#contents + 1] = {
+					n = G.UIT.R,
+					config = { align = 'cm', padding = 0.05 },
+					nodes = {
+						UIBox_button({
+							button = 'spdrn_set_duration_cap_on',
+							label = { 'On' .. (cap_on and ' *' or '') },
+							colour = cap_on and G.C.GREEN or G.C.GREY,
+							minw = 4,
+							minh = 0.6,
+							scale = 0.45,
+						}),
+					},
+				}
+				contents[#contents + 1] = {
+					n = G.UIT.R,
+					config = { align = 'cm', padding = 0.05 },
+					nodes = {
+						UIBox_button({
+							button = 'spdrn_set_duration_cap_off',
+							label = { 'Off' .. (not cap_on and ' *' or '') },
+							colour = (not cap_on) and G.C.GREEN or G.C.GREY,
+							minw = 4,
+							minh = 0.6,
+							scale = 0.45,
+						}),
+					},
+				}
+			end
 	end
 
 	G.FUNCS.overlay_menu({

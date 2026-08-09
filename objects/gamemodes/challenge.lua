@@ -71,8 +71,8 @@ MPAPI.GameMode({
 		build_pool = function() return challenge_pool(5) end,
 		decorate_tile = decorate_challenge_tile,
 	},
-	-- §16.7: 1 run.
-	duration_cap_seconds = SPDRN.DURATION_CAP_PER_RUN_SECONDS,
+	-- §16.7: duration cap is a per-gamemode option (has_duration_cap); this mode doesn't
+	-- have it turned on yet, so no duration_cap_seconds is set.
 	init = function(self)
 		self._win_fired = false
 		self._forfeited = {}
