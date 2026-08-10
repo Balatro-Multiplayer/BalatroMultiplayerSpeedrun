@@ -6,6 +6,13 @@ MPAPI.ActionType({
 	on_receive = function(action_type, from_player_id, params)
 		local lobby = MPAPI.get_current_lobby()
 
+		-- Feeds MPAPI core's shared ready-status badge (every client, not just
+		-- host) -- separate from SPDRN.set_player_ready's host-only tally below,
+		-- which still gates START/auto-start on its own.
+		if lobby then
+			MPAPI.set_player_ready(lobby, from_player_id, params and params.ready)
+		end
+
 		-- Lobby-join race fix: a guest's initial ready (sent the instant its lobby is
 		-- ready) can be published before the host has subscribed to the actions topic,
 		-- so the host never sees it and the auto-start stalls. The host->guest direction
