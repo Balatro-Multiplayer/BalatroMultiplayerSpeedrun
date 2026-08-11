@@ -39,6 +39,10 @@ end
 MPAPI.playback.register_handler('spdrn', 'manifest', function(_args, _ctx) end)
 MPAPI.playback.register_handler('spdrn', 'end', function(_args, _ctx) end)
 MPAPI.playback.register_handler('spdrn', 'chk', function(_args, _ctx) end)
+-- Pure bookkeeping (see record.lua's ease_dollars hook) -- the real dollar
+-- change already happens as a side effect of whatever action caused it
+-- (buy/sell/etc, each already replayed by its own handler), nothing to apply.
+MPAPI.playback.register_handler('spdrn', 'money_delta', function(_args, _ctx) end)
 
 -- Same real-UIBox technique PvP's equivalent handler needed (confirmed live
 -- there, a crash risk from calling select_blind before G.blind_select's own

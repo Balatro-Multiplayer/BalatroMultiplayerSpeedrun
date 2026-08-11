@@ -82,6 +82,21 @@ end
 -- Record call sites
 -------------------------------------------------------------------------------
 
+-- Carbon: every balance change, whatever the cause (buy/sell/reroll cost,
+-- blind reward, interest, joker trigger, ...) -- independent of the itemized
+-- `cost` now carried on buy/open_pack/voucher's own args, so a viewer can
+-- cross-check "sum of individual purchase costs" against "total observed
+-- balance decrease" instead of trusting either alone. Same global-function
+-- override pattern as every other hook here (wrap-and-call-through), so this
+-- chains correctly if PvP's own ease_dollars override (overrides/game.lua)
+-- is also installed -- whichever mod's file loads second wraps the other's,
+-- both still fire.
+local ease_dollars_ref = ease_dollars
+function ease_dollars(mod, instant)
+	if rlog_active() then RLOG.record("money_delta", mod) end
+	return ease_dollars_ref(mod, instant)
+end
+
 local select_blind_ref = G.FUNCS.select_blind
 function G.FUNCS.select_blind(e)
 	select_blind_ref(e)
@@ -162,7 +177,10 @@ function G.FUNCS.buy_from_shop(e)
 				opcode = "voucher"
 			end
 			local ref = RLOG.card_ref(c1)
-			RLOG.record(opcode, { area, idx, ref }, human)
+			-- cost trails the existing {area, idx, ref} positions -- appended, not
+			-- inserted, so playback_handlers.lua's existing args[1]/args[2] reads
+			-- (area/idx) are untouched.
+			RLOG.record(opcode, { area, idx, ref, c1.cost }, human)
 		end
 	end
 	return buy_from_shop_ref(e)
