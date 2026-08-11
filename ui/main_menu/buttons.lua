@@ -3,6 +3,8 @@ SPDRN.main_menu = SPDRN.main_menu or { buttons = {}, initialized = false }
 -- Distinct teal for the Leaderboard button: unused by any other menu button
 -- (Blue/Green/Red/Purple/Orange) yet sits within Balatro's bright UI palette.
 local _leaderboard_colour = { 0.20, 0.74, 0.72, 1 }
+-- Distinct violet-pink for Replays: unused by Leaderboard/Blue/Green/Red/Purple/Orange.
+local _replay_colour = { 0.65, 0.30, 0.75, 1 }
 
 function SPDRN.main_menu.create_buttons()
 	local M = SPDRN.main_menu
@@ -78,6 +80,19 @@ function SPDRN.main_menu.create_buttons()
 			return MPAPI.is_connected()
 		end,
 	})
+	b.replay = MPAPI.disableable_button({
+		id = 'spdrn_replay',
+		button = 'spdrn_open_replay_browser',
+		colour = _replay_colour,
+		minw = 2.65,
+		minh = 1.35,
+		label = { localize('b_replay_cap') },
+		scale = 0.54,
+		col = true,
+		enabled = function()
+			return MPAPI.is_connected()
+		end,
+	})
 
 	M.initialized = true
 end
@@ -92,6 +107,7 @@ SPDRN.update_main_menu_buttons = function()
 	M.buttons.join_by_code:update()
 	M.buttons.join_from_clipboard:update()
 	M.buttons.leaderboard:update()
+	M.buttons.replay:update()
 end
 
 SPDRN._show_searching_state = function(searching)

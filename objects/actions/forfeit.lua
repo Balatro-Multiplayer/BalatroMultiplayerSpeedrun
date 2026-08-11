@@ -7,6 +7,11 @@ MPAPI.ActionType({
 		end
 
 		if from_player_id == lobby.player_id then
+			-- Belt-and-suspenders close of this run's RLOG block: forfeiting can
+			-- happen mid-run, before either of record_run_completed's/
+			-- _check_run_lost's own end_run calls would otherwise fire.
+			-- Idempotent, so harmless if the run was already closed.
+			MPAPI.replay.end_run({ result = 'forfeit' })
 			G.E_MANAGER:add_event(Event({
 				func = function()
 					if G.STAGE == G.STAGES.RUN then

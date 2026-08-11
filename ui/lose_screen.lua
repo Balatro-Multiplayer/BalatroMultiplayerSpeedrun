@@ -210,8 +210,18 @@ function SPDRN._check_run_lost()
 	local lobby = MPAPI.get_current_lobby()
 	local instance = lobby and lobby:get_gamemode_instance()
 	if instance and instance.on_run_lost and instance:on_run_lost() then
+		-- Still closes out this individual run's RLOG block even though the default
+		-- lose screen is suppressed (e.g. Seed Scout's silent scouting-phase
+		-- auto-restart) -- otherwise the next begin_run (once the restart's
+		-- BLIND_SELECT is reached) would fire while this run's block was never
+		-- END/CHK-terminated. Idempotent (end_run no-ops once already closed), so
+		-- safe even though on_run_lost() can be called more than once per death.
+		MPAPI.replay.end_run({ result = 'restart' })
 		return
 	end
 	SPDRN._run_lost_shown = true
+	-- Closes out this individual run's RLOG block -- see objects/replay_log/record.lua's
+	-- begin_run wiring. A no-op if RLOG isn't active for this run.
+	MPAPI.replay.end_run({ result = 'loss' })
 	SPDRN.show_run_lost_screen()
 end

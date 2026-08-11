@@ -147,6 +147,10 @@ function SPDRN.record_run_completed()
 	if not p.best_run_time_ms or run_time_ms < p.best_run_time_ms then
 		p.best_run_time_ms = run_time_ms
 	end
+	-- Closes out this individual run's RLOG block (see objects/replay_log/record.lua's
+	-- begin_run wiring) -- a no-op if RLOG isn't active for this run (end_run itself
+	-- guards on RLOG._run_active), so this is safe to call unconditionally.
+	MPAPI.replay.end_run({ result = 'run_complete' })
 end
 
 -- §end-screen stats: called once, the moment this client's own match
