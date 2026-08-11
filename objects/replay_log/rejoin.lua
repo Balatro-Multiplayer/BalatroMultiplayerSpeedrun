@@ -18,21 +18,46 @@ function SPDRN._launch_rejoin(active)
 	local conn = MPAPI.get_connection()
 	local my_id = conn and conn.player_id
 
-	local manifest = nil
+	-- Merges the first match_manifest (schema_version) + first lobby_info
+	-- (gamemode/ruleset) + first run_info (seed/deck/stake) event, same as
+	-- replay_browser.lua's find_bootstrap -- kept as an inline loop here
+	-- since `active.events` isn't a built timeline (no player_id per entry;
+	-- it's already this player's own single stream).
+	local bootstrap, found = {}, {}
 	local timeline = {}
 	for _, ev in ipairs(active.events or {}) do
-		if ev.opcode == 'manifest' then manifest = ev.args end
+		if not found.match_manifest and ev.opcode == 'match_manifest' then
+			found.match_manifest = true
+			bootstrap.schema_version = ev.args.schema_version
+		elseif not found.lobby_info and ev.opcode == 'lobby_info' then
+			found.lobby_info = true
+			bootstrap.gamemode = ev.args.gamemode
+			bootstrap.ruleset = ev.args.ruleset
+		elseif not found.run_info and ev.opcode == 'run_info' then
+			found.run_info = true
+			bootstrap.seed = ev.args.seed
+			bootstrap.deck = ev.args.deck
+			bootstrap.stake = ev.args.stake
+		end
 		timeline[#timeline + 1] = { t = ev.t, player_id = my_id, opcode = ev.opcode, args = ev.args }
 	end
-	if not manifest then
-		SPDRN.sendWarnMessage('[rejoin] no manifest event in active run ' .. tostring(active.runId))
+	if not (found.lobby_info and found.run_info) then
+		SPDRN.sendWarnMessage('[rejoin] no bootstrap data in active run ' .. tostring(active.runId))
+		return
+	end
+	if not MPAPI.replay.is_schema_compatible(bootstrap.schema_version) then
+		SPDRN.sendWarnMessage(
+			'[rejoin] recording schema_version ' .. tostring(bootstrap.schema_version)
+			.. ' is newer than this client understands (' .. tostring(MPAPI.replay.SCHEMA_VERSION) .. '); refusing to rejoin'
+		)
 		return
 	end
 
-	SPDRN._start_playback(manifest, function()
+	SPDRN._start_playback(bootstrap, function()
 		local driver = MPAPI.playback.new_driver(timeline, {
 			mod_id = 'spdrn',
 			pov_player_id = my_id,
+			schema_version = bootstrap.schema_version,
 			on_complete = function()
 				local lobby = MPAPI.join_lobby(SPDRN.id, active.lobbyCode)
 				-- Opt out of on_lobby_connected's "match formed while practicing,

@@ -47,6 +47,28 @@ function SPDRN._start_playback(manifest, on_ready)
 	end, on_ready)
 end
 
+-- Mid-replay run-transition handler for run_died/run_restarted (see
+-- run_transition_codes.lua's header comment for why run_complete doesn't use
+-- this). Pauses the driver, programmatically reproduces what clicking
+-- "Restart Run" would have done (SPDRN.restart_current_run() -- real restart
+-- machinery, not a reimplementation, so every teardown/rebuild side effect
+-- fires exactly as live play would), then resumes once the fresh run's
+-- BLIND_SELECT is actually ready. Safe to call from inside a dispatch the
+-- driver itself just invoked: Driver:_tick (api/playback/driver.lua) is a
+-- single top-to-bottom function with no reentrancy, so pausing mid-dispatch
+-- just stops the NEXT tick from advancing, it doesn't unwind this one.
+function SPDRN._playback_handle_run_transition(_kind, ctx)
+	local driver = ctx.driver
+	if not driver then return end
+	driver:pause()
+	SPDRN.restart_current_run()
+	SPDRN._playback_wait_for(function()
+		return G.STATE == G.STATES.BLIND_SELECT and G.blind_select ~= nil
+	end, function()
+		driver:play()
+	end)
+end
+
 -- Minimal, self-contained one-shot condition poll -- same shape as PvP's own
 -- (lib/playback_launch.lua), kept as SPDRN's own copy rather than a shared
 -- MPAPI utility since MPAPI.playback's driver (api/playback/driver.lua)
