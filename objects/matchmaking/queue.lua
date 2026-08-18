@@ -18,6 +18,14 @@ function SPDRN._join_queue(kind, gamemode_key)
 		game_mode = game_mode,
 		min_players = 2,
 		max_players = mm_max,
+		-- Without this, MPAPI.matchmaking.queue() has no way to know this is a
+		-- ranked attempt (it can't infer that from game_mode's "ranked:" prefix
+		-- alone - see that function's own doc comment), so its launcher-anti-cheat
+		-- gate silently never ran for a real ranked queue attempt here. The
+		-- server-side launcher-integrity gate is unaffected either way (it's
+		-- independent, keyed off the game_mode prefix), but this client-side
+		-- layer of defense-in-depth was a no-op for every ranked SPDRN queue.
+		ranked = kind == SPDRN.LobbyKind.RANKED,
 	})
 
 	if not handle then
