@@ -1,3 +1,51 @@
+-- Builds the MPAPI.BanPick config for `gm_def`'s draft -- shared between the
+-- normal on_receive flow below (a fresh draft, kicked off by the
+-- spdrn_start_game broadcast) and ui/lobby/reconnect.lua's crash-relaunch
+-- resume path (MPAPI.BanPick.resume into a draft already in progress) --
+-- both need the EXACT same shape (pool/schedule/tile-decoration/action-key
+-- wiring), so this is the one place that shape is written.
+function SPDRN._ban_pick_config_for(gm_def)
+	return {
+		pool_size = gm_def.ban_pick.pool_size,
+		keep = gm_def.ban_pick.keep,
+		schedule = gm_def.ban_pick.schedule,
+		build_pool = gm_def.ban_pick.build_pool,
+		decorate_tile = gm_def.ban_pick.decorate_tile,
+		state_action = 'spdrn_ban_pick_state',
+		ban_action = 'spdrn_ban_pick_ban',
+		on_refresh = function()
+			SPDRN.lobby.refresh_mm_status()
+		end,
+	}
+end
+
+-- Builds the on_complete callback for `gm_def`'s draft -- also shared with
+-- the reconnect-resume path. `seed` is passed explicitly rather than closed
+-- over a spdrn_start_game action message's own params: a resumed draft has
+-- no such message (the reconnecting client crashed before or during the
+-- original broadcast), so it reads the seed SPDRN.broadcast_start mirrored
+-- into lobby metadata instead (see ui/lobby/run_start.lua) -- passing it in
+-- explicitly here keeps this one function correct for both callers instead
+-- of needing two near-duplicate versions.
+function SPDRN._ban_pick_on_complete_for(gm_def, meta, lobby, seed)
+	return function(survivors, ban_order)
+		-- keep == 0 bans every pool item, so `survivors` is always empty -- the ban
+		-- ORDER is the intended result (e.g. All Deck's play order). Every other
+		-- gamemode's ban_pick has keep > 0, so this is a no-op for them.
+		local run_order = (gm_def.ban_pick.keep == 0) and ban_order or survivors
+		-- Reuse the gamemode's own ban_pick.decorate_tile here too (stake sticker,
+		-- challenge-name label, ...) -- without it the countdown screen's deck-back
+		-- tiles show correctly (once resolved past raw {key=...} survivor items,
+		-- see countdown.lua) but silently drop that extra context.
+		SPDRN.show_countdown(function()
+			if lobby.is_host then
+				SPDRN.mark_run_started()
+			end
+			SPDRN.begin_run(meta.gamemode, run_order, seed)
+		end, run_order, gm_def.ban_pick.decorate_tile)
+	end
+end
+
 MPAPI.ActionType({
 	key = 'spdrn_start_game',
 	on_receive = function(action_type, from_player_id, params)
@@ -39,30 +87,11 @@ MPAPI.ActionType({
 			-- controls (see build_matchmaking_controls) for matchmaking; private lobbies render
 			-- it the same way via SPDRN.lobby.build_controls's is_matchmaking() branch -- an
 			-- always_draft private lobby is treated as "matchmaking-shaped" for this one screen.
-			MPAPI.BanPick.start(lobby, {
-				pool_size = gm_def.ban_pick.pool_size,
-				keep = gm_def.ban_pick.keep,
-				schedule = gm_def.ban_pick.schedule,
-				build_pool = gm_def.ban_pick.build_pool,
-				decorate_tile = gm_def.ban_pick.decorate_tile,
-				state_action = 'spdrn_ban_pick_state',
-				ban_action = 'spdrn_ban_pick_ban',
-				on_refresh = function()
-					SPDRN.lobby.refresh_mm_status()
-				end,
-			}, function(survivors, ban_order)
-				-- keep == 0 bans every pool item, so `survivors` is always empty -- the ban
-				-- ORDER is the intended result (e.g. All Deck's play order). Every other
-				-- gamemode's ban_pick has keep > 0, so this is a no-op for them.
-				local run_order = (gm_def.ban_pick.keep == 0) and ban_order or survivors
-				-- Reuse the gamemode's own ban_pick.decorate_tile here too (stake sticker,
-				-- challenge-name label, ...) -- without it the countdown screen's deck-back
-				-- tiles show correctly (once resolved past raw {key=...} survivor items,
-				-- see countdown.lua) but silently drop that extra context.
-				SPDRN.show_countdown(function()
-					proceed(run_order)
-				end, run_order, gm_def.ban_pick.decorate_tile)
-			end)
+			MPAPI.BanPick.start(
+				lobby,
+				SPDRN._ban_pick_config_for(gm_def),
+				SPDRN._ban_pick_on_complete_for(gm_def, meta, lobby, params.seed)
+			)
 		else
 			-- Private + matchmaking without a draft: synced 5s countdown, single deck.
 			SPDRN.show_countdown(function()

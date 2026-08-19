@@ -93,6 +93,15 @@ function SPDRN.report_match_result(winner_id)
 	end
 
 	local progress = SPDRN.finalize_match_progress()
+	-- Closes this MATCH's RLOG block (end_run is now once-per-match, see
+	-- ui/lobby/run_start.lua's begin_run) -- this is this client's own
+	-- match-ending event (it won, lost to someone else winning, or hit the
+	-- duration-cap timeout with no single winner). Idempotent (end_run
+	-- no-ops once already closed), so harmless if objects/actions/forfeit.lua's
+	-- own end_run already closed the block first for a terminal forfeit.
+	MPAPI.replay.end_run({
+		result = winner_id == nil and 'timeout' or (winner_id == lobby.player_id and 'win' or 'loss'),
+	})
 	-- §16.10/17: jokers/deck_back/deck ride along for the win/lose screen's
 	-- per-player jokers+deck viewer only -- build_placements (above)
 	-- deliberately never reads them, so this stays a pure display

@@ -210,8 +210,21 @@ function SPDRN._check_run_lost()
 	local lobby = MPAPI.get_current_lobby()
 	local instance = lobby and lobby:get_gamemode_instance()
 	if instance and instance.on_run_lost and instance:on_run_lost() then
+		-- Marks this individual run's death+silent-restart even though the
+		-- default lose screen is suppressed (e.g. Seed Scout's silent
+		-- scouting-phase auto-restart) -- see run_transition_codes.lua's
+		-- header comment for why this (unlike run_complete) needs an explicit
+		-- playback-side restart. write()/record() already no-op without an
+		-- active lobby, so safe even though on_run_lost() can be called more
+		-- than once per death.
+		MPAPI.RLOGCodes.run_restarted:write()
 		return
 	end
 	SPDRN._run_lost_shown = true
+	-- Marks this individual run's death (mid-match -- the match itself isn't
+	-- over yet, see run_transition_codes.lua; the match-ending end_run fires
+	-- separately from objects/matchmaking/result.lua/objects/actions/forfeit.lua
+	-- once the player either restarts-then-eventually-wins or forfeits).
+	MPAPI.RLOGCodes.run_died:write()
 	SPDRN.show_run_lost_screen()
 end

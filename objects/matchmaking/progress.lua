@@ -147,6 +147,12 @@ function SPDRN.record_run_completed()
 	if not p.best_run_time_ms or run_time_ms < p.best_run_time_ms then
 		p.best_run_time_ms = run_time_ms
 	end
+	-- Marks this individual run's completion within the match's single RLOG
+	-- block (end_run is now once-per-match -- see objects/replay_log/
+	-- run_transition_codes.lua and ui/lobby/run_start.lua's begin_run). A
+	-- no-op if RLOG isn't active (write() -> record() already guards on
+	-- RLOG.is_active()/_run_active), so safe to call unconditionally.
+	MPAPI.RLOGCodes.run_complete:write()
 end
 
 -- §end-screen stats: called once, the moment this client's own match

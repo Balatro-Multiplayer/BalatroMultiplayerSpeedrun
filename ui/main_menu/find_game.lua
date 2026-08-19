@@ -29,6 +29,19 @@ end
 -- ranked play is turned back on.
 SPDRN.RANKED_ENABLED = false
 
+-- Whether the Ranked queue buttons should actually be clickable right now:
+-- the feature-level switch above AND MPAPI's own confirmation that the
+-- *server* accepted our launcher-integrity challenge response (see
+-- MPAPI.is_launcher_verified() in api/connection/lifecycle.lua - NOT a
+-- client-side-only "did BET answer" check, the actual server verdict).
+-- server.joinQueue() enforces this same requirement independently either
+-- way (matchmaking.service.ts) - this only avoids sending a request that's
+-- going to 403, and gives the player an honest button state instead of a
+-- click that silently does nothing or bounces off an error toast.
+function SPDRN._ranked_queue_available()
+	return SPDRN.RANKED_ENABLED and MPAPI.is_launcher_verified()
+end
+
 G.FUNCS.spdrn_find_game = function()
 	G.FUNCS.overlay_menu({
 		definition = create_UIBox_generic_options({
@@ -41,7 +54,7 @@ G.FUNCS.spdrn_find_game = function()
 					config = { align = 'cm', padding = 0.1 },
 					nodes = {
 						{ n = G.UIT.C, config = { align = 'cm', padding = 0.1 }, nodes = {
-							queue_section(localize('k_ranked_cap'), 'spdrn_queue_ranked_white', 'spdrn_queue_ranked_gold', SPDRN.RANKED_ENABLED),
+							queue_section(localize('k_ranked_cap'), 'spdrn_queue_ranked_white', 'spdrn_queue_ranked_gold', SPDRN._ranked_queue_available()),
 						} },
 						{ n = G.UIT.C, config = { align = 'cm', padding = 0.1 }, nodes = {
 							queue_section(localize('k_casual_cap'), 'spdrn_queue_casual_white', 'spdrn_queue_casual_gold', true),
@@ -54,7 +67,7 @@ G.FUNCS.spdrn_find_game = function()
 end
 
 G.FUNCS.spdrn_queue_ranked_white = function()
-	if not SPDRN.RANKED_ENABLED then
+	if not SPDRN._ranked_queue_available() then
 		return
 	end
 	G.FUNCS.exit_overlay_menu()
@@ -62,7 +75,7 @@ G.FUNCS.spdrn_queue_ranked_white = function()
 end
 
 G.FUNCS.spdrn_queue_ranked_gold = function()
-	if not SPDRN.RANKED_ENABLED then
+	if not SPDRN._ranked_queue_available() then
 		return
 	end
 	G.FUNCS.exit_overlay_menu()

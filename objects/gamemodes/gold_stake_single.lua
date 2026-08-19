@@ -9,8 +9,9 @@ MPAPI.GameMode({
 	},
 	-- Pre-run deck draft (matchmaking only): 5 random decks, ban down to the 1 played.
 	ban_pick = { pool_size = 5, keep = 1 },
-	-- §16.7: 1 run.
-	duration_cap_seconds = SPDRN.DURATION_CAP_PER_RUN_SECONDS,
+	-- §16.7: 25 minutes for the format's single run.
+	has_duration_cap = true,
+	duration_cap_seconds = 25 * 60,
 	init = function(self)
 		self._win_fired = false
 		self._forfeited = {}

@@ -121,6 +121,28 @@ function SPDRN.begin_run(gamemode_key, decks, seed)
 	-- §16.8: fresh per-match progress/result-collection state -- must not carry
 	-- over from whatever match (if any) this player was previously in.
 	SPDRN.reset_match_progress()
+
+	-- RLOG: true once-per-MATCH choke point (never reached by restart_current_run/
+	-- change_current_run_seed, which only trigger a run transition -- see
+	-- objects/replay_log/record.lua's _check_pending_run_info for the per-run
+	-- seed/deck/stake record instead). Fires match_manifest/lobby_info
+	-- immediately, synchronously -- both are fully known right here, no
+	-- BLIND_SELECT wait needed the way run_info's stake still requires.
+	MPAPI.replay.begin_run()
+	MPAPI.RLOGCodes.match_manifest:write()
+	do
+		-- Best-effort per-player host flag: only this client's OWN host status
+		-- is locally known for certain (lobby.is_host); SPDRN has no existing
+		-- host_id tracking for OTHER players, so their is_host defaults to
+		-- false rather than guessing.
+		local players = {}
+		for _, p in ipairs(lobby:get_players()) do
+			players[#players + 1] = { id = p.id, is_host = (p.id == lobby.player_id) and lobby.is_host or false }
+		end
+		local lobby_meta = lobby:get_metadata() or {}
+		MPAPI.RLOGCodes.lobby_info:write(gamemode_key, gamemode_key, players, deck_list, lobby_meta)
+	end
+
 	-- Client-side run clock (gates the seed-change window) and the deck(s) used for this run
 	-- (so a same-seed restart can reuse them).
 	SPDRN._run_started_at = love.timer.getTime()
@@ -211,8 +233,17 @@ function SPDRN.broadcast_start(seed)
 	if not lobby then
 		return
 	end
+	seed = seed or SPDRN.generate_seed()
+	-- Mirrored into lobby metadata (persisted server-side, returned again in
+	-- context.reconnected_lobby.metadata on a crash-relaunch reconnect -- see
+	-- ui/reconnect_prompt.lua) so a player who crashes mid-ban-pick-draft can
+	-- still recover the match seed once the resumed draft completes on their
+	-- client -- the action broadcast itself (below) only ever reaches clients
+	-- connected at the moment it fires, same reasoning as
+	-- MPAPI.BanPick.broadcast_state's own metadata mirror.
+	lobby:set_metadata({ _mp_pending_seed = seed })
 	local action = lobby:action(MPAPI.ActionTypes['spdrn_start_game'])
-	action:broadcast({ seed = seed or SPDRN.generate_seed() })
+	action:broadcast({ seed = seed })
 end
 
 -- Host (private) clicks START -> broadcast the start to everyone.
