@@ -1,7 +1,8 @@
 -- One matchmaking section (Ranked or Casual): the two gamemode buttons stacked, with the
 -- section label on a readable horizontal row beneath them. `enabled = false` greys the
--- buttons out via MPAPI's standard disabled-button styling (see SPDRN.RANKED_ENABLED below)
--- instead of removing them, so the Ranked section stays visible but non-interactive.
+-- buttons out via MPAPI's standard disabled-button styling instead of removing them, so
+-- the Ranked section stays visible but non-interactive (see SPDRN._ranked_queue_available()
+-- below).
 local function queue_section(label, white_btn, gold_btn, enabled)
 	return {
 		n = G.UIT.C,
@@ -20,26 +21,22 @@ local function queue_section(label, white_btn, gold_btn, enabled)
 	}
 end
 
--- Client-side mirror of the server's ranked-disable flag (see server: env
--- RANKED_ENABLED / assertRankedEnabled in matchmaking.route.ts). Hardcoded
--- off for now -- the client has no config-fetch path to learn the server's
--- live value (see BalatroMultiplayerServer's config.route.ts: chatEnabled/
--- testingMode are the only flags exposed today, and nothing consumes them
--- client-side yet). Flip this back to `true` to re-enable the buttons once
--- ranked play is turned back on.
-SPDRN.RANKED_ENABLED = false
-
 -- Whether the Ranked queue buttons should actually be clickable right now:
--- the feature-level switch above AND MPAPI's own confirmation that the
--- *server* accepted our launcher-integrity challenge response (see
--- MPAPI.is_launcher_verified() in api/connection/lifecycle.lua - NOT a
--- client-side-only "did BET answer" check, the actual server verdict).
--- server.joinQueue() enforces this same requirement independently either
--- way (matchmaking.service.ts) - this only avoids sending a request that's
--- going to 403, and gives the player an honest button state instead of a
--- click that silently does nothing or bounces off an error toast.
+-- MPAPI's confirmation that the *server* accepted our launcher-integrity
+-- challenge response (see MPAPI.is_launcher_verified() in
+-- api/connection/lifecycle.lua - NOT a client-side-only "did BET answer"
+-- check, the actual server verdict). server.joinQueue() enforces this same
+-- requirement independently either way (matchmaking.service.ts) - this only
+-- avoids sending a request that's going to 403, and gives the player an
+-- honest button state instead of a click that silently does nothing or
+-- bounces off an error toast. Ranked play itself used to also be gated
+-- behind a separate, always-off SPDRN.RANKED_ENABLED kill switch (a
+-- client-side mirror of the server's own RANKED_ENABLED env flag) - removed
+-- now that Ranked is actually live; the server's assertRankedEnabled()
+-- guard in matchmaking.route.ts is still the real switch if it ever needs
+-- to come back.
 function SPDRN._ranked_queue_available()
-	return SPDRN.RANKED_ENABLED and MPAPI.is_launcher_verified()
+	return MPAPI.is_launcher_verified()
 end
 
 G.FUNCS.spdrn_find_game = function()
