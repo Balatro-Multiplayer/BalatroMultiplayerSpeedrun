@@ -22,7 +22,6 @@ SPDRN.build_pre_lobby_ui = function()
 									{ n = G.UIT.R, config = { align = 'cm' }, nodes = {
 										{ n = G.UIT.C, config = { align = 'cm', padding = 0.05 }, nodes = { b.leaderboard.node } },
 										{ n = G.UIT.C, config = { align = 'cm', padding = 0.05 }, nodes = { b.practice.node } },
-										{ n = G.UIT.C, config = { align = 'cm', padding = 0.05 }, nodes = { b.replay.node } },
 									} },
 								},
 							},
