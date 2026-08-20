@@ -1,4 +1,6 @@
--- Broadcast a vote to restart the match on a new seed.
+-- Broadcast a vote to change the seed of whatever run every player is
+-- currently on (see ui/run_options.lua's G.FUNCS.spdrn_seed_change - the
+-- real, non-practice entry point).
 function SPDRN.cast_seed_vote()
 	local lobby = SPDRN.lobby.ref or MPAPI.get_current_lobby()
 	if not lobby then
@@ -9,7 +11,10 @@ function SPDRN.cast_seed_vote()
 end
 
 -- Runs on every client when any vote arrives (broadcast reaches all). Each client tallies
--- independently and shows progress; the host restarts on a unanimous vote.
+-- independently and shows progress; the host applies the new seed to the
+-- current run (not a whole-match restart - see spdrn_seed_change_apply's own
+-- comment) once the vote is unanimous, broadcasting it so every client lands
+-- on the exact same seed rather than each generating their own.
 function SPDRN.register_seed_vote(voter_id)
 	local lobby = MPAPI.get_current_lobby()
 	if not lobby then
@@ -29,6 +34,7 @@ function SPDRN.register_seed_vote(voter_id)
 
 	if lobby.is_host and unanimous then
 		SPDRN.lobby.seed_votes:reset()
-		SPDRN.broadcast_start(SPDRN.generate_seed())
+		local action = lobby:action(MPAPI.ActionTypes['spdrn_seed_change_apply'])
+		action:broadcast({ seed = SPDRN.generate_seed() })
 	end
 end

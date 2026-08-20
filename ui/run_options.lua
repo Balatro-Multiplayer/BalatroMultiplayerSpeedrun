@@ -1,11 +1,17 @@
 -- Custom pause/options screen for an active speedrun run.
 
--- §16.9: a real, per-player, current-run-only action -- no voting, no effect on
--- any other player, whether in practice or a live lobby (see
--- SPDRN.change_current_run_seed).
+-- Practice is solo (same special-case shape as spdrn_forfeit below): nobody
+-- else to vote with, so apply directly. A real lobby broadcasts a vote
+-- instead (SPDRN.cast_seed_vote/register_seed_vote, ui/lobby/seed_vote.lua)
+-- so every player ends up on the same new seed, only applying once
+-- everyone's agreed - mirrors BalatroMultiplayerPvP's own seed-change vote.
 G.FUNCS.spdrn_seed_change = function()
 	G.FUNCS.exit_overlay_menu()
-	SPDRN.change_current_run_seed()
+	if SPDRN.get_lobby_kind() == SPDRN.LobbyKind.PRACTICE then
+		SPDRN.change_current_run_seed()
+	else
+		SPDRN.cast_seed_vote()
+	end
 end
 
 G.FUNCS.spdrn_forfeit = function()

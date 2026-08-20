@@ -195,17 +195,22 @@ function SPDRN.restart_current_run()
 	safe_start_run(instance, deck, seed)
 end
 
--- §16.9: a real in-run seed change -- a per-player action with no voting and no
--- effect on any other player (unlike §16.5's pre-match unanimous seed vote,
--- which this used to incorrectly reuse). Keeps the player on whatever run
--- they're currently on -- same deck, same gamemode instance, _run_count/
--- _run_decks/_base_seed and the rest of a multi-run sequence untouched -- and
--- resets just that run to its beginning on a freshly generated seed. Routes
--- through safe_start_run/request_run_transition exactly like restart_current_run,
--- so the per-run timer (SPDRN._current_run_started_at, §16.8) resets correctly
--- with no extra work: that already happens generically for any run transition,
--- not specifically for a restart.
-function SPDRN.change_current_run_seed()
+-- A real in-run seed change, applied to whatever run every player is
+-- currently on -- same deck, same gamemode instance, _run_count/_run_decks/
+-- _base_seed and the rest of a multi-run sequence untouched -- resetting
+-- just that run to its beginning on the given seed. Routes through
+-- safe_start_run/request_run_transition exactly like restart_current_run,
+-- so the per-run timer (SPDRN._current_run_started_at, §16.8) resets
+-- correctly with no extra work: that already happens generically for any
+-- run transition, not specifically for a restart.
+--
+-- Takes an explicit seed rather than generating its own: SPDRN.cast_seed_vote/
+-- register_seed_vote (ui/lobby/seed_vote.lua) need every client to apply the
+-- SAME seed once a vote passes, not each generate a different one locally.
+-- SPDRN.change_current_run_seed() below (the practice/solo entry point,
+-- where there's nobody else to vote with) generates its own and calls
+-- straight through.
+function SPDRN.apply_current_run_seed(seed)
 	local lobby = MPAPI.get_current_lobby()
 	if not lobby then
 		return
@@ -219,11 +224,19 @@ function SPDRN.change_current_run_seed()
 	local meta_deck_for_run = type(meta_deck) == 'table' and (meta_deck[run_idx] or meta_deck[1]) or meta_deck
 	local deck = (instance._run_decks and instance._run_decks[run_idx])
 		or SPDRN._run_deck or meta_deck_for_run or SPDRN.Deck.DEFAULT
-	local seed = SPDRN.generate_seed()
 	if SPDRN.timer then
 		SPDRN.timer.resume()
 	end
 	safe_start_run(instance, deck, seed)
+end
+
+-- Practice-only entry point (see ui/run_options.lua's G.FUNCS.spdrn_seed_change,
+-- which calls this directly only when SPDRN.get_lobby_kind() == LobbyKind.PRACTICE,
+-- same "solo, nobody to vote with" special-case forfeit already makes in that
+-- same file) -- a real lobby goes through SPDRN.cast_seed_vote instead
+-- (ui/lobby/seed_vote.lua), so every player ends up on the same seed.
+function SPDRN.change_current_run_seed()
+	SPDRN.apply_current_run_seed(SPDRN.generate_seed())
 end
 
 -- Host broadcasts the start so every client (itself included, via the loopback) runs the same
